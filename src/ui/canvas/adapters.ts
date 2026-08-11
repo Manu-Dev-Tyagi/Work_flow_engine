@@ -11,12 +11,14 @@ export type WorkflowNodeData = {
   status?: NodeRuntimeStatus
   lastOutput?: Record<string, unknown>
   onConfigChange: (nodeId: string, key: string, value: unknown) => void
+  onDelete: (nodeId: string) => void
 }
 
 export function graphToFlow(
   graph: Graph,
   execution: ExecutionContext | null,
   onConfigChange: (nodeId: string, key: string, value: unknown) => void,
+  onDelete: (nodeId: string) => void,
   labels: Record<NodeType, string>,
 ): { nodes: Node<WorkflowNodeData>[]; edges: Edge[] } {
   const nodes: Node<WorkflowNodeData>[] = graph.nodes.map((n) => ({
@@ -30,13 +32,20 @@ export function graphToFlow(
       status: execution?.nodeStatuses[n.id],
       lastOutput: execution?.results[n.id]?.output,
       onConfigChange,
+      onDelete,
     },
   }))
 
   const edges: Edge[] = graph.edges.map((e) => {
     const value = execution?.edgeValues[e.id]
     const label =
-      value === undefined ? undefined : typeof value === 'string' ? value : String(value)
+      value === undefined
+        ? undefined
+        : typeof value === 'string'
+          ? value
+          : typeof value === 'number' || typeof value === 'boolean'
+            ? String(value)
+            : JSON.stringify(value)
 
     return {
       id: e.id,

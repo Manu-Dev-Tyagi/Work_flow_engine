@@ -3,6 +3,7 @@
 export enum PortType {
   Number = 'number',
   String = 'string',
+  Object = 'object',
 }
 
 export enum NodeType {
@@ -10,6 +11,7 @@ export enum NodeType {
   Addition = 'addition',
   GenerateString = 'generateString',
   Concatenation = 'concatenation',
+  ApiRequest = 'apiRequest',
 }
 
 export enum WorkflowStatus {

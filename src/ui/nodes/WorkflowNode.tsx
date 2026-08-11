@@ -1,4 +1,5 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import Button from '@atlaskit/button/new'
 import TextField from '@atlaskit/textfield'
 import Lozenge from '@atlaskit/lozenge'
 import Heading from '@atlaskit/heading'
@@ -39,11 +40,23 @@ export function createWorkflowNodeType(registry: Registry) {
           .filter(Boolean)
           .join(' ')}
       >
-        <div className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-slate-200 px-3 py-2">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-slate-200 px-3 py-2">
           <Heading size="xsmall">{data.label}</Heading>
           <Lozenge appearance={statusAppearance(data.status)}>
             {data.status ?? NodeRuntimeStatus.Waiting}
           </Lozenge>
+          <span className="nodrag nopan">
+            <Button
+              appearance="danger"
+              spacing="compact"
+              onClick={(event) => {
+                event.stopPropagation()
+                data.onDelete(id)
+              }}
+            >
+              Delete
+            </Button>
+          </span>
         </div>
 
         <div className="grid gap-2 px-3 py-2">

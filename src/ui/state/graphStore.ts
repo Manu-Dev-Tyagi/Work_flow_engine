@@ -30,6 +30,13 @@ export function defaultConfiguration(type: NodeType): Record<string, unknown> {
       return { a: 0 }
     case NodeType.GenerateString:
       return { a: '' }
+    case NodeType.ApiRequest:
+      return {
+        url: 'https://jsonplaceholder.typicode.com/users',
+        countPath: '0.count',
+        namePath: '0.name',
+        locPath: '0.address.city',
+      }
     case NodeType.Addition:
     case NodeType.Concatenation:
       return {}

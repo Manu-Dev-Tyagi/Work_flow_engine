@@ -29,6 +29,7 @@ const NODE_LABELS: Record<NodeType, string> = {
   [NodeTypeEnum.Addition]: 'Addition',
   [NodeTypeEnum.GenerateString]: 'Generate String',
   [NodeTypeEnum.Concatenation]: 'Concatenation',
+  [NodeTypeEnum.ApiRequest]: 'API Request',
 }
 
 function AppShell() {
@@ -42,9 +43,20 @@ function AppShell() {
     setExecution(null)
   }, [])
 
+  const onDeleteNode = useCallback((nodeId: string) => {
+    setGraph((current) => ({
+      ...current,
+      nodes: current.nodes.filter((n) => n.id !== nodeId),
+      edges: current.edges.filter(
+        (e) => e.source.nodeId !== nodeId && e.target.nodeId !== nodeId,
+      ),
+    }))
+    setExecution(null)
+  }, [])
+
   const { nodes, edges } = useMemo(
-    () => graphToFlow(graph, execution, onConfigChange, NODE_LABELS),
-    [graph, execution, onConfigChange],
+    () => graphToFlow(graph, execution, onConfigChange, onDeleteNode, NODE_LABELS),
+    [graph, execution, onConfigChange, onDeleteNode],
   )
 
   const handleNodesChange: OnNodesChange = (changes) => {
