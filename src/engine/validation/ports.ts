@@ -2,6 +2,7 @@ import { ValidationErrorCode } from '../graph/enums'
 import type { PortType } from '../graph/enums'
 import type { Graph } from '../graph/types'
 import type { Registry } from '../registry/registry'
+import { resolveNodePorts } from '../registry/resolvePorts'
 import type { ValidationError } from './types'
 
 /** Shared port-type equality check used by validation and UI isValidConnection. */
@@ -29,8 +30,11 @@ export function validatePorts(graph: Graph, registry: Registry): ValidationError
     const targetDef = registry.get(targetNode.type)
     if (!sourceDef || !targetDef) continue
 
-    const sourcePortType = sourceDef.outputSchema[edge.source.port]
-    const targetPortType = targetDef.inputSchema[edge.target.port]
+    const sourcePorts = resolveNodePorts(sourceDef, sourceNode.configuration)
+    const targetPorts = resolveNodePorts(targetDef, targetNode.configuration)
+
+    const sourcePortType = sourcePorts.outputSchema[edge.source.port]
+    const targetPortType = targetPorts.inputSchema[edge.target.port]
     if (sourcePortType === undefined || targetPortType === undefined) continue
 
     if (!portsCompatible(sourcePortType, targetPortType)) {

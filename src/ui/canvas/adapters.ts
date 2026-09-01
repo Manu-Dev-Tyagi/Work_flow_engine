@@ -1,16 +1,17 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { Graph, NodeInstance } from '../../engine/graph/types'
-import type { NodeType } from '../../engine/graph/enums'
 import type { ExecutionContext } from '../../engine/runtime/executionContext'
 import { NodeRuntimeStatus } from '../../engine/graph/enums'
+import type { Registry } from '../../engine/registry/registry'
 
 export type WorkflowNodeData = {
-  nodeType: NodeType
+  nodeType: NodeInstance['type']
   label: string
   configuration: Record<string, unknown>
   status?: NodeRuntimeStatus
   lastOutput?: Record<string, unknown>
   onConfigChange: (nodeId: string, key: string, value: unknown) => void
+  onConfigBatchChange: (nodeId: string, patch: Record<string, unknown>) => void
   onDelete: (nodeId: string) => void
 }
 
@@ -18,23 +19,45 @@ export function graphToFlow(
   graph: Graph,
   execution: ExecutionContext | null,
   onConfigChange: (nodeId: string, key: string, value: unknown) => void,
+  onConfigBatchChange: (nodeId: string, patch: Record<string, unknown>) => void,
   onDelete: (nodeId: string) => void,
-  labels: Record<NodeType, string>,
+  registry: Registry,
+  previous?: { nodes: Node<WorkflowNodeData>[]; edges: Edge[] },
 ): { nodes: Node<WorkflowNodeData>[]; edges: Edge[] } {
-  const nodes: Node<WorkflowNodeData>[] = graph.nodes.map((n) => ({
-    id: n.id,
-    type: 'workflow',
-    position: n.position,
-    data: {
-      nodeType: n.type,
-      label: labels[n.type] ?? n.type,
-      configuration: n.configuration,
-      status: execution?.nodeStatuses[n.id],
-      lastOutput: execution?.results[n.id]?.output,
-      onConfigChange,
-      onDelete,
-    },
-  }))
+  const previousNodes = new Map((previous?.nodes ?? []).map((node) => [node.id, node]))
+  const nodes: Node<WorkflowNodeData>[] = graph.nodes.map((n) => {
+    const status = execution?.nodeStatuses[n.id]
+    const lastOutput = execution?.results[n.id]?.output
+    const previousNode = previousNodes.get(n.id)
+    if (
+      previousNode &&
+      previousNode.position === n.position &&
+      previousNode.data.nodeType === n.type &&
+      previousNode.data.configuration === n.configuration &&
+      previousNode.data.status === status &&
+      previousNode.data.lastOutput === lastOutput &&
+      previousNode.data.onConfigChange === onConfigChange &&
+      previousNode.data.onConfigBatchChange === onConfigBatchChange &&
+      previousNode.data.onDelete === onDelete
+    ) {
+      return previousNode
+    }
+    return {
+      id: n.id,
+      type: 'workflow',
+      position: n.position,
+      data: {
+        nodeType: n.type,
+        label: registry.get(n.type)?.label ?? n.type,
+        configuration: n.configuration,
+        status,
+        lastOutput,
+        onConfigChange,
+        onConfigBatchChange,
+        onDelete,
+      },
+    }
+  })
 
   const edges: Edge[] = graph.edges.map((e) => {
     const value = execution?.edgeValues[e.id]
@@ -89,6 +112,21 @@ export function updateNodeConfiguration(
     nodes: graph.nodes.map((n) =>
       n.id === nodeId
         ? { ...n, configuration: { ...n.configuration, [key]: value } }
+        : n,
+    ),
+  }
+}
+
+export function updateNodeConfigurationBatch(
+  graph: Graph,
+  nodeId: string,
+  patch: Record<string, unknown>,
+): Graph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((n) =>
+      n.id === nodeId
+        ? { ...n, configuration: { ...n.configuration, ...patch } }
         : n,
     ),
   }

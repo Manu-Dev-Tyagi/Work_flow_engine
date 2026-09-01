@@ -12,6 +12,7 @@ export enum NodeType {
   GenerateString = 'generateString',
   Concatenation = 'concatenation',
   ApiRequest = 'apiRequest',
+  GetEventTemplate = 'getEventTemplate',
 }
 
 export enum WorkflowStatus {

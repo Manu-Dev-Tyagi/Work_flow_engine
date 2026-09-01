@@ -2,6 +2,7 @@ import type { Connection } from '@xyflow/react'
 import { ValidationErrorCode } from '../../engine/graph/enums'
 import type { Graph } from '../../engine/graph/types'
 import type { Registry } from '../../engine/registry/registry'
+import { resolveNodePorts } from '../../engine/registry/resolvePorts'
 import {
   describeTypeMismatch,
   portsCompatible,
@@ -53,10 +54,13 @@ export function checkConnection(
     }
   }
 
+  const sourcePorts = resolveNodePorts(sourceDef, sourceNode.configuration)
+  const targetPorts = resolveNodePorts(targetDef, targetNode.configuration)
+
   const sourcePort = connection.sourceHandle
   const targetPort = connection.targetHandle
-  const sourceType = sourceDef.outputSchema[sourcePort]
-  const targetType = targetDef.inputSchema[targetPort]
+  const sourceType = sourcePorts.outputSchema[sourcePort]
+  const targetType = targetPorts.inputSchema[targetPort]
 
   if (sourceType === undefined) {
     return {

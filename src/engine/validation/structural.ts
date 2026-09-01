@@ -1,6 +1,7 @@
 import { ValidationErrorCode } from '../graph/enums'
 import type { Graph } from '../graph/types'
 import type { Registry } from '../registry/registry'
+import { resolveNodePorts, resolveOptionalInputPorts } from '../registry/resolvePorts'
 import type { ValidationError } from './types'
 
 export function validateStructural(graph: Graph, registry: Registry): ValidationError[] {
@@ -57,22 +58,28 @@ export function validateStructural(graph: Graph, registry: Registry): Validation
     const sourceDef = registry.get(sourceNode.type)
     const targetDef = registry.get(targetNode.type)
 
-    if (sourceDef && !(edge.source.port in sourceDef.outputSchema)) {
-      errors.push({
-        code: ValidationErrorCode.UnknownPort,
-        message: `Unknown output port "${edge.source.port}" on node type ${sourceNode.type}`,
-        nodeId: sourceNode.id,
-        edgeId: edge.id,
-      })
+    if (sourceDef) {
+      const sourcePorts = resolveNodePorts(sourceDef, sourceNode.configuration)
+      if (!(edge.source.port in sourcePorts.outputSchema)) {
+        errors.push({
+          code: ValidationErrorCode.UnknownPort,
+          message: `Unknown output port "${edge.source.port}" on node type ${sourceNode.type}`,
+          nodeId: sourceNode.id,
+          edgeId: edge.id,
+        })
+      }
     }
 
-    if (targetDef && !(edge.target.port in targetDef.inputSchema)) {
-      errors.push({
-        code: ValidationErrorCode.UnknownPort,
-        message: `Unknown input port "${edge.target.port}" on node type ${targetNode.type}`,
-        nodeId: targetNode.id,
-        edgeId: edge.id,
-      })
+    if (targetDef) {
+      const targetPorts = resolveNodePorts(targetDef, targetNode.configuration)
+      if (!(edge.target.port in targetPorts.inputSchema)) {
+        errors.push({
+          code: ValidationErrorCode.UnknownPort,
+          message: `Unknown input port "${edge.target.port}" on node type ${targetNode.type}`,
+          nodeId: targetNode.id,
+          edgeId: edge.id,
+        })
+      }
     }
   }
 
@@ -80,7 +87,10 @@ export function validateStructural(graph: Graph, registry: Registry): Validation
     const definition = registry.get(node.type)
     if (!definition) continue
 
-    for (const port of Object.keys(definition.inputSchema)) {
+    const { inputSchema } = resolveNodePorts(definition, node.configuration)
+    const optionalPorts = resolveOptionalInputPorts(definition, node.configuration)
+    for (const port of Object.keys(inputSchema)) {
+      if (optionalPorts.has(port)) continue
       const key = `${node.id}::${port}`
       if (!inputOccupancy.has(key)) {
         errors.push({

@@ -4,6 +4,7 @@ import { apiRequestDefinition } from './apiRequest'
 import { concatenationDefinition } from './concatenation'
 import { generateNumberDefinition } from './generateNumber'
 import { generateStringDefinition } from './generateString'
+import { getEventTemplateDefinition } from './getEventTemplate'
 
 export function registerAll(registry: Registry): void {
   registry.register(generateNumberDefinition)
@@ -11,6 +12,7 @@ export function registerAll(registry: Registry): void {
   registry.register(generateStringDefinition)
   registry.register(concatenationDefinition)
   registry.register(apiRequestDefinition)
+  registry.register(getEventTemplateDefinition)
 }
 
 export {
@@ -19,4 +21,5 @@ export {
   concatenationDefinition,
   generateNumberDefinition,
   generateStringDefinition,
+  getEventTemplateDefinition,
 }

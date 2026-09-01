@@ -1,11 +1,13 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import Button from '@atlaskit/button/new'
-import TextField from '@atlaskit/textfield'
+import { DebouncedTextField } from './DebouncedTextField'
 import Lozenge from '@atlaskit/lozenge'
 import Heading from '@atlaskit/heading'
-import { NodeRuntimeStatus, PortType } from '../../engine/graph/enums'
+import { NodeRuntimeStatus, NodeType, PortType } from '../../engine/graph/enums'
+import { resolveNodePorts } from '../../engine/registry/resolvePorts'
 import type { Registry } from '../../engine/registry/registry'
 import type { WorkflowNodeData } from '../canvas/adapters'
+import { GetEventTemplateConfig } from './GetEventTemplateConfig'
 
 function statusAppearance(
   status?: NodeRuntimeStatus,
@@ -25,9 +27,17 @@ function statusAppearance(
 export function createWorkflowNodeType(registry: Registry) {
   return function WorkflowNode({ id, data }: NodeProps<Node<WorkflowNodeData>>) {
     const definition = registry.get(data.nodeType)
-    const inputSchema = definition?.inputSchema ?? {}
-    const outputSchema = definition?.outputSchema ?? {}
+    const resolved = definition
+      ? resolveNodePorts(definition, data.configuration)
+      : { inputSchema: {}, outputSchema: {} }
+    const inputSchema = resolved.inputSchema
+    const outputSchema = resolved.outputSchema
     const configSchema = definition?.configurationSchema ?? {}
+    const isGetEventTemplate = data.nodeType === NodeType.GetEventTemplate
+    const displayLabel =
+      isGetEventTemplate && data.configuration.templateDisplayName
+        ? `Get Event Template: ${String(data.configuration.templateDisplayName)}`
+        : data.label
 
     return (
       <div
@@ -41,7 +51,7 @@ export function createWorkflowNodeType(registry: Registry) {
           .join(' ')}
       >
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-slate-200 px-3 py-2">
-          <Heading size="xsmall">{data.label}</Heading>
+          <Heading size="xsmall">{displayLabel}</Heading>
           <Lozenge appearance={statusAppearance(data.status)}>
             {data.status ?? NodeRuntimeStatus.Waiting}
           </Lozenge>
@@ -59,28 +69,38 @@ export function createWorkflowNodeType(registry: Registry) {
           </span>
         </div>
 
-        <div className="grid gap-2 px-3 py-2">
-          {Object.entries(configSchema).map(([key, portType]) => (
-            <label key={key} className="grid gap-1 text-xs text-slate-600">
-              <span>config.{key}</span>
-              <TextField
-                name={`${id}-${key}`}
-                isCompact
-                type={portType === PortType.Number ? 'number' : 'text'}
-                value={String(data.configuration[key] ?? '')}
-                onChange={(e) => {
-                  const raw = e.currentTarget.value
-                  const value =
-                    portType === PortType.Number
-                      ? raw === ''
-                        ? 0
-                        : Number(raw)
-                      : raw
-                  data.onConfigChange(id, key, value)
-                }}
-              />
-            </label>
-          ))}
+        <div
+          className="nodrag nopan nowheel grid gap-2 px-3 py-2"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {isGetEventTemplate ? (
+            <GetEventTemplateConfig
+              nodeId={id}
+              configuration={data.configuration}
+              onConfigChange={data.onConfigChange}
+              onConfigBatchChange={data.onConfigBatchChange}
+            />
+          ) : (
+            Object.entries(configSchema).map(([key, portType]) => (
+              <label key={key} className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
+                <span>config.{key}</span>
+                <DebouncedTextField
+                  name={`${id}-${key}`}
+                  type={portType === PortType.Number ? 'number' : 'text'}
+                  committedValue={String(data.configuration[key] ?? '')}
+                  onCommit={(raw) => {
+                    const value =
+                      portType === PortType.Number
+                        ? raw === ''
+                          ? 0
+                          : Number(raw)
+                        : raw
+                    data.onConfigChange(id, key, value)
+                  }}
+                />
+              </label>
+            ))
+          )}
 
           {Object.keys(inputSchema).map((port) => (
             <div key={`in-${port}`} className="relative py-1 pl-2 text-xs text-slate-700">

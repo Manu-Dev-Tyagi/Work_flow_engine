@@ -37,6 +37,15 @@ export function defaultConfiguration(type: NodeType): Record<string, unknown> {
         namePath: '0.name',
         locPath: '0.address.city',
       }
+    case NodeType.GetEventTemplate:
+      return {
+        baseUrl: '',
+        workspaceId: '',
+        accessToken: '',
+        templateId: '',
+        templateDisplayName: '',
+        cachedTemplate: null,
+      }
     case NodeType.Addition:
     case NodeType.Concatenation:
       return {}
@@ -69,4 +78,21 @@ export function loadGraph(): Graph | null {
   } catch {
     return null
   }
+}
+
+export function clearSavedGraph(): void {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+let persistTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Debounced auto-save so HMR / refresh does not wipe unsaved work. */
+export function schedulePersistGraph(graph: Graph): void {
+  if (persistTimer !== undefined) {
+    clearTimeout(persistTimer)
+  }
+  persistTimer = setTimeout(() => {
+    saveGraph(graph)
+    persistTimer = undefined
+  }, 400)
 }

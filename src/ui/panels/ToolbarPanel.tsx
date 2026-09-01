@@ -1,7 +1,7 @@
 import Button from '@atlaskit/button/new'
 import Heading from '@atlaskit/heading'
-import { NodeType } from '../../engine/graph/enums'
 import type { Registry } from '../../engine/registry/registry'
+import type { NodeType } from '../../engine/graph/enums'
 
 type Props = {
   registry: Registry
@@ -9,6 +9,7 @@ type Props = {
   onRun: () => void
   onSave: () => void
   onLoad: () => void
+  onClear: () => void
   isRunning: boolean
 }
 
@@ -18,10 +19,11 @@ export function ToolbarPanel({
   onRun,
   onSave,
   onLoad,
+  onClear,
   isRunning,
 }: Props) {
   return (
-    <aside className="grid grid-rows-[auto_1fr_auto] gap-4 border-r border-slate-200 bg-white p-4">
+    <aside className="grid grid-rows-[auto_1fr_auto] gap-4 overflow-auto border-r border-slate-200 bg-white p-4">
       <Heading size="medium">Workflow Engine</Heading>
 
       <div className="grid gap-2 content-start">
@@ -46,6 +48,9 @@ export function ToolbarPanel({
         </Button>
         <Button appearance="default" onClick={onLoad}>
           Load graph
+        </Button>
+        <Button appearance="danger" onClick={onClear} isDisabled={isRunning}>
+          Clear canvas
         </Button>
       </div>
     </aside>
