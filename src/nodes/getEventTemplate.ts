@@ -65,8 +65,18 @@ function buildDynamicInputSchema(configuration: Config): Record<string, PortType
 export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> = {
   type: NodeType.GetEventTemplate,
   label: 'Get Event Template',
-  configurationSchema: {},
-  inputSchema: {},
+  configurationSchema: {
+    baseUrl: PortType.String,
+    workspaceId: PortType.String,
+    accessToken: PortType.String,
+    templateId: PortType.String,
+    templateDisplayName: PortType.String,
+    cachedTemplate: PortType.Object,
+  },
+  inputSchema: {
+    accessToken: PortType.String,
+    workspaceId: PortType.String,
+  },
   outputSchema: FIXED_OUTPUT_SCHEMA,
   resolvePorts(configuration) {
     return {
