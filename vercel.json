@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/sub-system/:path*",
+      "destination": "https://dev.intellsys.ai/sub-system/:path*"
+    }
+  ]
+}
