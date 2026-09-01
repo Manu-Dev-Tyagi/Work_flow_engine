@@ -9,12 +9,12 @@ function shouldProxyThroughApp(baseUrl: string): boolean {
 }
 
 /**
- * Browser calls same-origin `/sub-system/...`.
- * Vite proxies that locally; Vercel proxies it via /api/sub-system.
+ * Browser always calls same-origin `/api/event-templates`.
+ * Vite proxies that locally; Vercel serves api/event-templates.ts.
  */
 export function buildPlutoUrl(baseUrl: string, path: string): string {
+  if (shouldProxyThroughApp(baseUrl)) return '/api/event-templates'
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  if (shouldProxyThroughApp(baseUrl)) return normalizedPath
   const trimmed = baseUrl.trim().replace(/\/+$/, '')
   return `${trimmed}${normalizedPath}`
 }
