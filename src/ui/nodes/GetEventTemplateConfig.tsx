@@ -80,10 +80,10 @@ export function GetEventTemplateConfig({
   return (
     <div className="nodrag nopan nowheel grid gap-2">
       <label className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
-        <span>Base URL (leave empty for local dev proxy)</span>
+        <span>Base URL (leave empty — local and Vercel both proxy to Vesta)</span>
         <DebouncedTextField
           name={`${nodeId}-baseUrl`}
-          placeholder="https://dev.intellsys.ai or empty"
+          placeholder="empty or https://dev.intellsys.ai"
           committedValue={String(configuration.baseUrl ?? '')}
           onDraftChange={setBaseUrl}
           onCommit={(value) => onConfigChange(nodeId, 'baseUrl', value)}
