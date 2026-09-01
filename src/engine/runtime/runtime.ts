@@ -1,4 +1,4 @@
-import { LogLevel, NodeRuntimeStatus, WorkflowStatus } from '../graph/enums'
+import { LogLevel, NodeRuntimeStatus, PortType, WorkflowStatus } from '../graph/enums'
 import type { CompiledGraph } from '../graph/types'
 import type { Registry } from '../registry/registry'
 import {
@@ -7,7 +7,9 @@ import {
   type ExecutionContext,
 } from './executionContext'
 import { isNodeActivated } from './activation'
+import { resolveNodePorts } from '../registry/resolvePorts'
 import { resolveInputs } from './resolveInputs'
+import { formatEdgeDisplayValue } from './edgeDisplay'
 import type { NodeRunContext, RunWorkflowOptions } from './runContext'
 
 export type RuntimeHooks = Pick<RunWorkflowOptions, 'onContextUpdate' | 'stepDelayMs'>
@@ -87,10 +89,20 @@ export async function execute(
 
       ctx.results[nodeId] = { input, output, durationMs }
 
+      const outputPorts = resolveNodePorts(definition, node.configuration).outputSchema
+
       for (const edge of compiled.outgoingEdges.get(nodeId) ?? []) {
         const value = output[edge.source.port]
         if (value !== undefined) {
           ctx.edgeValues[edge.id] = value
+          const portType = outputPorts[edge.source.port]
+          ctx.edgeDisplayValues[edge.id] = formatEdgeDisplayValue({
+            sourceNode: node,
+            sourcePort: edge.source.port,
+            portType: portType ?? PortType.String,
+            value,
+            output,
+          })
         }
       }
 

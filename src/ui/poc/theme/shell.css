@@ -1,0 +1,224 @@
+/**
+ * POC shell spacing — explicit rules so Atlaskit / browser resets cannot zero them out.
+ */
+
+.workflow-sidebar-header {
+  padding: 16px 20px;
+}
+
+.workflow-sidebar-scroll {
+  padding: 12px 16px 16px;
+}
+
+.workflow-sidebar-footer {
+  padding: 16px 20px;
+}
+
+.workflow-config-header {
+  padding: 16px 20px;
+}
+
+.workflow-config-body {
+  padding: 16px 20px 24px;
+}
+
+.workflow-config-footer {
+  padding: 12px 20px 16px;
+}
+
+.workflow-execution-body {
+  padding: 16px 20px 20px;
+}
+
+.workflow-execution-cards {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+}
+
+.workflow-node-body {
+  padding: 12px 16px 0;
+}
+
+.workflow-node-ports-section {
+  border-top: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+.workflow-node-ports-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.workflow-node-ports-single {
+  display: block;
+}
+
+.workflow-node-ports-col-in,
+.workflow-node-ports-col-out {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.workflow-node-ports-header-in,
+.workflow-node-ports-header-out {
+  padding: 6px 12px 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workflow-node-ports-header-in {
+  color: #64748b;
+}
+
+.workflow-node-ports-header-out {
+  color: #16a34a;
+  text-align: right;
+}
+
+.workflow-node-port-in-row,
+.workflow-node-port-out-row {
+  position: relative;
+  display: flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 4px;
+}
+
+.workflow-node-port-in-row {
+  padding: 2px 6px 2px 16px;
+}
+
+.workflow-node-port-out-row {
+  justify-content: flex-end;
+  padding: 2px 16px 2px 6px;
+}
+
+.workflow-port-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.workflow-port-type {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.workflow-port-badge {
+  flex-shrink: 0;
+  border-radius: 9999px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.workflow-port-badge-string {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.workflow-port-badge-number {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.workflow-port-badge-object {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.workflow-connection-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 5;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e40af;
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.12);
+  pointer-events: none;
+}
+
+.workflow-node-configure {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.workflow-node-configure:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.workflow-node-port-summary {
+  display: none;
+}
+
+.workflow-config-section {
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-config-section + .workflow-config-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.workflow-config-section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.workflow-config-field {
+  display: grid;
+  gap: 6px;
+}
+
+.workflow-config-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.workflow-btn-danger-sm {
+  border: none;
+  border-radius: 6px;
+  background: #e11d48;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+}
+
+.workflow-btn-danger-sm:hover {
+  background: #be123c;
+}

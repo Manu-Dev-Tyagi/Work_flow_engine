@@ -22,3 +22,8 @@ npm run build
 `Graph JSON` → `validateGraph` → `compileGraph` → `execute` → `ExecutionContext`
 
 UI only edits Graph JSON and calls `runWorkflow(graph, registry)`.
+
+## POC shell (temporary)
+
+Layout chrome lives in `src/ui/poc/` — left sidebar, bottom execution drawer, node config modal.
+When embedded in Vesta, replace `WorkflowShell` / `WorkflowSidebar` / `WorkflowBottomDrawer` with Neptune/Sancus scaffolds; keep `src/ui/canvas/` and `src/ui/nodes/*Config.tsx` unchanged.

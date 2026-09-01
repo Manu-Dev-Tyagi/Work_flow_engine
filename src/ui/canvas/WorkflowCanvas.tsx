@@ -14,18 +14,22 @@ import {
   type OnNodesChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useLayoutEffect, useRef, type MutableRefObject } from 'react'
+import { useLayoutEffect, useRef, useState, type MutableRefObject } from 'react'
 import type { Registry } from '../../engine/registry/registry'
 import type { Graph } from '../../engine/graph/types'
 import type { ExecutionContext } from '../../engine/runtime/executionContext'
-import { GraphProvider } from '../graph/GraphContext'
 import { createWorkflowNodeType } from '../nodes/WorkflowNode'
 import type { WorkflowNodeData } from './adapters'
-import { checkConnection } from './connectionValidation'
+import { checkConnection, resolveHandlePortType } from './connectionValidation'
+import {
+  ConnectionDragProvider,
+  type ConnectionDragState,
+} from './ConnectionDragContext'
 import type { ConnectionMessage } from '../state/graphStore'
+import { WORKFLOW_NODE_ANCHOR, portTypeLabel } from '../poc/nodes/nodeDisplay'
 
 /** Approx half of a workflow node so the card sits visually centered. */
-const NODE_ANCHOR = { x: 110, y: 48 }
+const NODE_ANCHOR = WORKFLOW_NODE_ANCHOR
 
 /** Uniform minimap tiles — tall config panels should not dominate the overview. */
 const MINIMAP_NODE_SIZE = { width: 48, height: 32 }
@@ -43,6 +47,8 @@ type Props = {
   onConnect: (connection: Connection) => void
   onConnectionMessage: (message: ConnectionMessage) => void
   getViewportCenterRef: MutableRefObject<ViewportCenterGetter>
+  onSelectNode: (nodeId: string | null) => void
+  onOpenConfig: (nodeId: string) => void
 }
 
 /** Fit view once per page load — avoid jumping viewport on every graph update. */
@@ -64,6 +70,7 @@ function mergeFlowNodes(
       ...previous,
       data: node.data,
       position: node.position,
+      selected: node.selected,
     }
   })
 }
@@ -97,7 +104,6 @@ function sameItems<T>(left: T[], right: T[]): boolean {
 function WorkflowCanvasInner({
   registry,
   graph,
-  execution,
   nodes,
   edges,
   onNodesChange,
@@ -105,11 +111,15 @@ function WorkflowCanvasInner({
   onConnect,
   onConnectionMessage,
   getViewportCenterRef,
+  onSelectNode,
+  onOpenConfig,
 }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const { screenToFlowPosition } = useReactFlow()
   const [flowNodes, setFlowNodes, onFlowNodesChange] = useNodesState<Node<WorkflowNodeData>>(nodes)
   const [flowEdges, setFlowEdges, onFlowEdgesChange] = useEdgesState(edges)
+  const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState>(null)
+  const [dragHint, setDragHint] = useState<string | null>(null)
 
   const nodeTypes = useRef({
     workflow: createWorkflowNodeType(registry),
@@ -168,55 +178,77 @@ function WorkflowCanvasInner({
   }
 
   return (
-    <GraphProvider graph={graph} execution={execution}>
-      <div ref={wrapperRef} className="relative h-full w-full">
+    <div ref={wrapperRef} className="workflow-shell-canvas">
+      {dragHint ? <div className="workflow-connection-hint">{dragHint}</div> : null}
+      <ConnectionDragProvider value={connectionDrag}>
         <ReactFlow
-        nodes={flowNodes}
-        edges={flowEdges}
-        nodeTypes={nodeTypes}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={handleConnect}
-        isValidConnection={isValidConnection}
-        onlyRenderVisibleElements
-        onInit={(instance) => {
-          if (!hasInitialFitView) {
-            hasInitialFitView = true
-            void instance.fitView({ padding: 0.2 })
-          }
-        }}
-        deleteKeyCode={['Backspace', 'Delete']}
-      >
-        <Background />
-        <Controls />
-        <MiniMap
-          className="workflow-minimap"
-          pannable
-          zoomable
-          nodeColor="#3b82f6"
-          nodeStrokeColor="#1e40af"
-          nodeStrokeWidth={2}
-          nodeBorderRadius={4}
-          bgColor="#e2e8f0"
-          maskColor="rgba(15, 23, 42, 0.12)"
-          style={{ width: 180, height: 120 }}
-          nodeComponent={({ x, y, color }) => (
-            <rect
-              x={x}
-              y={y}
-              width={MINIMAP_NODE_SIZE.width}
-              height={MINIMAP_NODE_SIZE.height}
-              rx={4}
-              ry={4}
-              fill={color}
-              stroke="#1e40af"
-              strokeWidth={2}
-            />
-          )}
-        />
-      </ReactFlow>
-      </div>
-    </GraphProvider>
+          className="workflow-canvas"
+          nodes={flowNodes}
+          edges={flowEdges}
+          nodeTypes={nodeTypes}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onConnect={handleConnect}
+          isValidConnection={isValidConnection}
+          onConnectStart={(_event, { nodeId, handleId, handleType }) => {
+            const portType = resolveHandlePortType(graph, registry, nodeId, handleId, handleType)
+            if (!nodeId || !handleId || !handleType || !portType) return
+            setConnectionDrag({ nodeId, handleId, handleType, portType })
+            if (handleType === 'source') {
+              setDragHint(
+                `Connect this ${portTypeLabel(portType)} output to a ${portTypeLabel(portType)} input`,
+              )
+            }
+          }}
+          onConnectEnd={() => {
+            setConnectionDrag(null)
+            setDragHint(null)
+          }}
+          onlyRenderVisibleElements
+          defaultEdgeOptions={{ style: { strokeWidth: 2 } }}
+          connectionLineStyle={{ strokeWidth: 2 }}
+          nodeDragThreshold={2}
+          onNodeClick={(_event, node) => onSelectNode(node.id)}
+          onNodeDoubleClick={(_event, node) => onOpenConfig(node.id)}
+          onPaneClick={() => onSelectNode(null)}
+          onInit={(instance) => {
+            if (!hasInitialFitView) {
+              hasInitialFitView = true
+              void instance.fitView({ padding: 48, duration: 200 })
+            }
+          }}
+          deleteKeyCode={['Backspace', 'Delete']}
+        >
+          <Background />
+          <Controls />
+          <MiniMap
+            className="workflow-minimap"
+            pannable
+            zoomable
+            nodeColor="#3b82f6"
+            nodeStrokeColor="#1e40af"
+            nodeStrokeWidth={2}
+            nodeBorderRadius={4}
+            bgColor="#e2e8f0"
+            maskColor="rgba(15, 23, 42, 0.12)"
+            style={{ width: 180, height: 120 }}
+            nodeComponent={({ x, y, color }) => (
+              <rect
+                x={x}
+                y={y}
+                width={MINIMAP_NODE_SIZE.width}
+                height={MINIMAP_NODE_SIZE.height}
+                rx={4}
+                ry={4}
+                fill={color}
+                stroke="#1e40af"
+                strokeWidth={2}
+              />
+            )}
+          />
+        </ReactFlow>
+      </ConnectionDragProvider>
+    </div>
   )
 }
 

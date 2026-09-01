@@ -1,5 +1,6 @@
 import type { Graph } from '../../engine/graph/types'
 import type { ExecutionContext } from '../../engine/runtime/executionContext'
+import type { Registry } from '../../engine/registry/registry'
 import { createId } from '../../engine/graph/ids'
 import { NodeType } from '../../engine/graph/enums'
 import type { NodeInstance } from '../../engine/graph/types'
@@ -97,14 +98,25 @@ export function saveGraph(graph: Graph): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(graph))
 }
 
-export function loadGraph(): Graph | null {
+export function loadGraph(registry?: Registry): Graph | null {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as Graph
+    const graph = JSON.parse(raw) as Graph
+    return registry ? sanitizeGraph(graph, registry) : graph
   } catch {
     return null
   }
+}
+
+/** Drop removed node types (e.g. legacy pickField) and dangling edges from saved graphs. */
+export function sanitizeGraph(graph: Graph, registry: Registry): Graph {
+  const nodes = graph.nodes.filter((node) => registry.has(node.type))
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  const edges = graph.edges.filter(
+    (edge) => nodeIds.has(edge.source.nodeId) && nodeIds.has(edge.target.nodeId),
+  )
+  return { ...graph, nodes, edges }
 }
 
 export function clearSavedGraph(): void {

@@ -24,6 +24,8 @@ export type ExecutionContext = {
   nodeStatuses: Record<NodeId, NodeRuntimeStatus>
   results: Record<NodeId, NodeResult>
   edgeValues: Record<EdgeId, unknown>
+  /** Human-readable labels for canvas edges (derived from edgeValues). */
+  edgeDisplayValues: Record<EdgeId, string>
   logs: ExecutionLog[]
   executionOrder: NodeId[]
   triggerPayload?: Record<string, unknown>
@@ -49,6 +51,7 @@ export function createIdleContext(nodeIds: NodeId[] = []): ExecutionContext {
     nodeStatuses,
     results: {},
     edgeValues: {},
+    edgeDisplayValues: {},
     logs: [],
     executionOrder: [],
   }

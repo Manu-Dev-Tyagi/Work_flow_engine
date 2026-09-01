@@ -1,5 +1,5 @@
 import type { Connection } from '@xyflow/react'
-import { ValidationErrorCode } from '../../engine/graph/enums'
+import { ValidationErrorCode, type PortType } from '../../engine/graph/enums'
 import type { Graph } from '../../engine/graph/types'
 import type { Registry } from '../../engine/registry/registry'
 import { resolveNodePorts } from '../../engine/registry/resolvePorts'
@@ -12,6 +12,37 @@ import type { ConnectionMessage } from '../state/graphStore'
 export type ConnectionCheck = {
   valid: boolean
   message: ConnectionMessage
+}
+
+export function resolveHandlePortType(
+  graph: Graph,
+  registry: Registry,
+  nodeId: string | null | undefined,
+  handleId: string | null | undefined,
+  handleType: 'source' | 'target' | null | undefined,
+): PortType | undefined {
+  if (!nodeId || !handleId || !handleType) return undefined
+
+  const node = graph.nodes.find((n) => n.id === nodeId)
+  if (!node) return undefined
+
+  const definition = registry.get(node.type)
+  if (!definition) return undefined
+
+  const ports = resolveNodePorts(definition, node.configuration)
+  return handleType === 'source'
+    ? ports.outputSchema[handleId]
+    : ports.inputSchema[handleId]
+}
+
+export function canConnectToInput(
+  drag: { nodeId: string; handleType: 'source' | 'target'; portType: PortType } | null,
+  targetNodeId: string,
+  targetPortType: PortType,
+): boolean {
+  if (!drag || drag.handleType !== 'source') return true
+  if (drag.nodeId === targetNodeId) return false
+  return portsCompatible(drag.portType, targetPortType)
 }
 
 export function checkConnection(

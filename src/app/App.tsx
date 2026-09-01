@@ -12,7 +12,6 @@ import {
 } from '../ui/canvas/WorkflowCanvas'
 import { graphToFlow, updateNodeConfiguration, updateNodeConfigurationBatch } from '../ui/canvas/adapters'
 import { applyGraphEdgeChanges, applyGraphNodeChanges, filterPersistableEdgeChanges, filterPersistableNodeChanges } from '../ui/canvas/graphSync'
-import { ToolbarPanel } from '../ui/panels/ToolbarPanel'
 import { ResultsPanel } from '../ui/panels/ResultsPanel'
 import {
   clearSavedGraph,
@@ -20,6 +19,7 @@ import {
   createNodeInstance,
   loadLeadCreateTemplate,
   loadGraph,
+  sanitizeGraph,
   saveGraph,
   schedulePersistGraph,
   LEAD_CREATE_TRIGGER_JSON,
@@ -27,16 +27,24 @@ import {
 } from '../ui/state/graphStore'
 import type { Graph } from '../engine/graph/types'
 import type { NodeType } from '../engine/graph/enums'
+import { WorkflowShell } from '../ui/poc/shell/WorkflowShell'
+import { WorkflowSidebar } from '../ui/poc/shell/WorkflowSidebar'
+import { WorkflowBottomDrawer } from '../ui/poc/shell/WorkflowBottomDrawer'
+import { WorkflowConfigPanel } from '../ui/poc/shell/WorkflowConfigPanel'
+import { GraphProvider } from '../ui/graph/GraphContext'
+import type { WorkflowNodeData } from '../ui/canvas/adapters'
 
 const registry = createRegistry()
 registerAll(registry)
 
 function AppShell() {
-  const [graph, setGraph] = useState<Graph>(() => loadGraph() ?? createEmptyGraph())
+  const [graph, setGraph] = useState<Graph>(() => loadGraph(registry) ?? createEmptyGraph())
   const [execution, setExecution] = useState<ExecutionContext | null>(null)
   const [connectionMessage, setConnectionMessage] = useState<ConnectionMessage>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [triggerJson, setTriggerJson] = useState(LEAD_CREATE_TRIGGER_JSON)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [configModalNodeId, setConfigModalNodeId] = useState<string | null>(null)
   const getViewportCenterRef = useRef<ViewportCenterGetter>(() => ({ x: 80, y: 80 }))
 
   const commitGraph = useCallback((updater: (current: Graph) => Graph) => {
@@ -65,7 +73,14 @@ function AppShell() {
       ),
     }))
     setExecution(null)
+    setSelectedNodeId((current) => (current === nodeId ? null : current))
+    setConfigModalNodeId((current) => (current === nodeId ? null : current))
   }, [commitGraph])
+
+  const onOpenConfig = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId)
+    setConfigModalNodeId(nodeId)
+  }, [])
 
   const flowCacheRef = useRef({ nodes: [] as ReturnType<typeof graphToFlow>['nodes'], edges: [] as ReturnType<typeof graphToFlow>['edges'] })
   const { nodes, edges } = useMemo(() => {
@@ -75,12 +90,40 @@ function AppShell() {
       onConfigChange,
       onConfigBatchChange,
       onDeleteNode,
+      onOpenConfig,
+      selectedNodeId,
       registry,
       flowCacheRef.current,
     )
     flowCacheRef.current = next
     return next
-  }, [graph, execution, onConfigChange, onConfigBatchChange, onDeleteNode])
+  }, [graph, execution, onConfigChange, onConfigBatchChange, onDeleteNode, onOpenConfig, selectedNodeId])
+
+  const configModalNodeData = useMemo((): WorkflowNodeData | null => {
+    if (!configModalNodeId) return null
+    const node = graph.nodes.find((n) => n.id === configModalNodeId)
+    if (!node) return null
+    return {
+      nodeType: node.type,
+      label: registry.get(node.type)?.label ?? node.type,
+      configuration: node.configuration,
+      status: execution?.nodeStatuses[node.id],
+      lastOutput: execution?.results[node.id]?.output,
+      selected: true,
+      onConfigChange,
+      onConfigBatchChange,
+      onDelete: onDeleteNode,
+      onOpenConfig,
+    }
+  }, [
+    configModalNodeId,
+    graph.nodes,
+    execution,
+    onConfigChange,
+    onConfigBatchChange,
+    onDeleteNode,
+    onOpenConfig,
+  ])
 
   const handleNodesChange: OnNodesChange = (changes) => {
     const persistable = filterPersistableNodeChanges(changes)
@@ -172,13 +215,16 @@ function AppShell() {
     setTriggerJson(LEAD_CREATE_TRIGGER_JSON)
     setExecution(null)
     setConnectionMessage(null)
+    setSelectedNodeId(null)
+    setConfigModalNodeId(null)
   }
 
   const handleLoad = () => {
-    const loaded = loadGraph()
+    const loaded = loadGraph(registry)
     if (loaded) {
-      setGraph(loaded)
-      schedulePersistGraph(loaded)
+      const sanitized = sanitizeGraph(loaded, registry)
+      setGraph(sanitized)
+      schedulePersistGraph(sanitized)
       setExecution(null)
       setConnectionMessage(null)
     }
@@ -193,43 +239,68 @@ function AppShell() {
     setGraph(empty)
     setExecution(null)
     setConnectionMessage(null)
+    setSelectedNodeId(null)
+    setConfigModalNodeId(null)
   }
 
   return (
-    <div className="grid h-screen w-screen grid-cols-[240px_1fr_320px] grid-rows-1 bg-slate-100 text-slate-900">
-      <ToolbarPanel
-        registry={registry}
-        onAddNode={handleAddNode}
-        onRun={handleRun}
-        onSave={handleSave}
-        onLoad={handleLoad}
-        onLoadTemplate={handleLoadTemplate}
-        onClear={handleClear}
-        isRunning={isRunning}
-        triggerJson={triggerJson}
-        onTriggerJsonChange={setTriggerJson}
+    <GraphProvider graph={graph} execution={execution}>
+      <WorkflowShell
+        sidebar={
+          <WorkflowSidebar
+            registry={registry}
+            onAddNode={handleAddNode}
+            onRun={handleRun}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            onLoadTemplate={handleLoadTemplate}
+            onClear={handleClear}
+            isRunning={isRunning}
+            triggerJson={triggerJson}
+            onTriggerJsonChange={setTriggerJson}
+          />
+        }
+        workspace={
+          <>
+            <WorkflowCanvas
+              registry={registry}
+              graph={graph}
+              execution={execution}
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnect={handleConnect}
+              onConnectionMessage={setConnectionMessage}
+              getViewportCenterRef={getViewportCenterRef}
+              onSelectNode={setSelectedNodeId}
+              onOpenConfig={onOpenConfig}
+            />
+            <WorkflowBottomDrawer isRunning={isRunning} hasExecution={Boolean(execution)}>
+              <ResultsPanel
+                graph={graph}
+                registry={registry}
+                execution={execution}
+                connectionMessage={connectionMessage}
+                isRunning={isRunning}
+                embedded
+              />
+            </WorkflowBottomDrawer>
+          </>
+        }
+        configPanel={
+          configModalNodeId && configModalNodeData ? (
+            <WorkflowConfigPanel
+              nodeId={configModalNodeId}
+              nodeData={configModalNodeData}
+              registry={registry}
+              onClose={() => setConfigModalNodeId(null)}
+              onDelete={() => onDeleteNode(configModalNodeId)}
+            />
+          ) : null
+        }
       />
-      <main className="relative min-h-0 min-w-0">
-        <WorkflowCanvas
-          registry={registry}
-          graph={graph}
-          execution={execution}
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={handleEdgesChange}
-          onConnect={handleConnect}
-          onConnectionMessage={setConnectionMessage}
-          getViewportCenterRef={getViewportCenterRef}
-        />
-      </main>
-      <ResultsPanel
-        graph={graph}
-        execution={execution}
-        connectionMessage={connectionMessage}
-        isRunning={isRunning}
-      />
-    </div>
+    </GraphProvider>
   )
 }
 

@@ -1,33 +1,57 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import Button from '@atlaskit/button/new'
-import { DebouncedTextField } from './DebouncedTextField'
-import Lozenge from '@atlaskit/lozenge'
-import Heading from '@atlaskit/heading'
-import { NodeRuntimeStatus, NodeType, PortType } from '../../engine/graph/enums'
+import type { MouseEvent } from 'react'
+import { NodeRuntimeStatus, type PortType } from '../../engine/graph/enums'
 import { resolveNodePorts } from '../../engine/registry/resolvePorts'
 import type { Registry } from '../../engine/registry/registry'
+import { canConnectToInput } from '../canvas/connectionValidation'
+import { useConnectionDrag } from '../canvas/ConnectionDragContext'
 import type { WorkflowNodeData } from '../canvas/adapters'
-import { GetEventContainerTemplateConfig } from './GetEventContainerTemplateConfig'
-import { GetEventTemplateConfig } from './GetEventTemplateConfig'
-import { CreateEventContainerConfig } from './CreateEventContainerConfig'
-import { FindEventContainerConfig } from './FindEventContainerConfig'
-import { ObjectFromKeysConfig } from './ObjectFromKeysConfig'
+import { StatusChip } from '../poc/components/ui'
+import {
+  WORKFLOW_NODE_WIDTH_PX,
+  getNodeVisual,
+  portTypeBadgeClass,
+  portTypeLabel,
+  resolveNodeDisplayLabel,
+} from '../poc/nodes/nodeDisplay'
 
-function statusAppearance(
+const PORT_ROW_HEIGHT_PX = 26
+
+function nodeStatusTone(
   status?: NodeRuntimeStatus,
-): 'default' | 'inprogress' | 'success' | 'removed' {
+): 'waiting' | 'running' | 'completed' | 'failed' {
   switch (status) {
     case NodeRuntimeStatus.Running:
-      return 'inprogress'
+      return 'running'
     case NodeRuntimeStatus.Completed:
-      return 'success'
+      return 'completed'
     case NodeRuntimeStatus.Failed:
-      return 'removed'
-    case NodeRuntimeStatus.Skipped:
-      return 'default'
+      return 'failed'
     default:
-      return 'default'
+      return 'waiting'
   }
+}
+
+function PortTypeBadge({ portType }: { portType: PortType }) {
+  return (
+    <span className={`workflow-port-badge ${portTypeBadgeClass(portType)}`}>
+      {portTypeLabel(portType)}
+    </span>
+  )
+}
+
+function inputHandleClass(
+  connectable: boolean,
+  compatible: boolean,
+  dragging: boolean,
+): string {
+  const classes = ['workflow-handle-in']
+  if (dragging) {
+    classes.push(compatible ? 'workflow-handle-compatible' : 'workflow-handle-blocked')
+  } else if (!connectable) {
+    classes.push('workflow-handle-blocked')
+  }
+  return classes.join(' ')
 }
 
 export function createWorkflowNodeType(registry: Registry) {
@@ -36,144 +60,137 @@ export function createWorkflowNodeType(registry: Registry) {
     const resolved = definition
       ? resolveNodePorts(definition, data.configuration)
       : { inputSchema: {}, outputSchema: {} }
-    const inputSchema = resolved.inputSchema
-    const outputSchema = resolved.outputSchema
-    const configSchema = definition?.configurationSchema ?? {}
-    const isGetEventTemplate = data.nodeType === NodeType.GetEventTemplate
-    const isGetEventContainerTemplate = data.nodeType === NodeType.GetEventContainerTemplate
-    const isCreateEventContainer = data.nodeType === NodeType.CreateEventContainer
-    const isFindEventContainer = data.nodeType === NodeType.FindEventContainer
-    const isObjectFromKeys = data.nodeType === NodeType.ObjectFromKeys
-    const displayLabel =
-      isGetEventTemplate && data.configuration.templateDisplayName
-        ? `Get Event Template: ${String(data.configuration.templateDisplayName)}`
-        : isGetEventContainerTemplate && data.configuration.templateDisplayName
-          ? `Get Event Container Template: ${String(data.configuration.templateDisplayName)}`
-          : isCreateEventContainer && data.configuration.organizationalUnitDisplayName
-            ? `Create Event Container: ${String(data.configuration.organizationalUnitDisplayName)}`
-            : data.label
+    const inputPorts = Object.keys(resolved.inputSchema)
+    const outputPorts = Object.keys(resolved.outputSchema)
+    const portRows = Math.max(inputPorts.length, outputPorts.length)
+    const visual = getNodeVisual(data.nodeType)
+    const display = resolveNodeDisplayLabel(data.nodeType, data.label, data.configuration)
+    const selected = data.selected === true
+    const status = data.status ?? NodeRuntimeStatus.Waiting
+    const connectionDrag = useConnectionDrag()
+    const dragging = connectionDrag !== null
+
+    const openConfig = (event: MouseEvent) => {
+      event.stopPropagation()
+      data.onOpenConfig(id)
+    }
+
+    const statusRing =
+      status === NodeRuntimeStatus.Running
+        ? 'ring-2 ring-blue-400 border-blue-400'
+        : status === NodeRuntimeStatus.Completed
+          ? 'ring-1 ring-emerald-300 border-emerald-300'
+          : status === NodeRuntimeStatus.Failed
+            ? 'ring-2 ring-rose-400 border-rose-300'
+            : selected
+              ? `ring-2 ${visual.ring} border-slate-300`
+              : 'border-slate-200 hover:border-slate-300'
+
+    const twoColumns = inputPorts.length > 0 && outputPorts.length > 0
 
     return (
       <div
-        className={[
-          'min-w-[200px] rounded border border-slate-300 bg-white shadow-sm',
-          data.status === NodeRuntimeStatus.Running ? 'border-blue-500' : '',
-          data.status === NodeRuntimeStatus.Completed ? 'border-emerald-500' : '',
-          data.status === NodeRuntimeStatus.Failed ? 'border-red-500' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={`workflow-node-card relative rounded-lg border bg-white shadow-sm transition ${statusRing}`}
+        style={{
+          width: WORKFLOW_NODE_WIDTH_PX,
+          minHeight: portRows > 0 ? 96 + portRows * PORT_ROW_HEIGHT_PX : 96,
+        }}
       >
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-slate-200 px-3 py-2">
-          <Heading size="xsmall">{displayLabel}</Heading>
-          <Lozenge appearance={statusAppearance(data.status)}>
-            {data.status ?? NodeRuntimeStatus.Waiting}
-          </Lozenge>
-          <span className="nodrag nopan">
-            <Button
-              appearance="danger"
-              spacing="compact"
-              onClick={(event) => {
-                event.stopPropagation()
-                data.onDelete(id)
-              }}
-            >
-              Delete
-            </Button>
-          </span>
+        <div className={`h-1.5 rounded-t-lg ${visual.header}`} />
+
+        <div className="workflow-node-body flex items-start gap-3 pb-2">
+          <div
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${visual.dot} text-sm text-white`}
+          >
+            {visual.glyph}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="truncate text-[13px] font-semibold leading-tight text-slate-800">
+                {display.title}
+              </p>
+              <button
+                type="button"
+                className="workflow-node-configure nodrag nopan nowheel"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={openConfig}
+              >
+                Configure
+              </button>
+            </div>
+            {display.subtitle ? (
+              <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-500">
+                {display.subtitle}
+              </p>
+            ) : (
+              <p className="mt-1 truncate text-[11px] text-slate-500">{visual.shortLabel}</p>
+            )}
+            <div className="mt-1.5">
+              <StatusChip label={status} tone={nodeStatusTone(status)} />
+            </div>
+          </div>
         </div>
 
-        <div
-          className="nodrag nopan nowheel grid gap-2 px-3 py-2"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          {isGetEventTemplate ? (
-            <GetEventTemplateConfig
-              nodeId={id}
-              configuration={data.configuration}
-              onConfigBatchChange={data.onConfigBatchChange}
-            />
-          ) : isGetEventContainerTemplate ? (
-            <GetEventContainerTemplateConfig
-              nodeId={id}
-              configuration={data.configuration}
-              onConfigBatchChange={data.onConfigBatchChange}
-            />
-          ) : isCreateEventContainer ? (
-            <CreateEventContainerConfig
-              nodeId={id}
-              configuration={data.configuration}
-              onConfigBatchChange={data.onConfigBatchChange}
-            />
-          ) : isFindEventContainer ? (
-            <FindEventContainerConfig
-              nodeId={id}
-              configuration={data.configuration}
-              onConfigBatchChange={data.onConfigBatchChange}
-            />
-          ) : isObjectFromKeys ? (
-            <ObjectFromKeysConfig
-              nodeId={id}
-              configuration={data.configuration}
-              onConfigChange={data.onConfigChange}
-            />
-          ) : (
-            Object.entries(configSchema).map(([key, portType]) => (
-              <label key={key} className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
-                <span>config.{key}</span>
-                <DebouncedTextField
-                  name={`${id}-${key}`}
-                  type={portType === PortType.Number ? 'number' : 'text'}
-                  committedValue={String(data.configuration[key] ?? '')}
-                  onCommit={(raw) => {
-                    const value =
-                      portType === PortType.Number
-                        ? raw === ''
-                          ? 0
-                          : Number(raw)
-                        : raw
-                    data.onConfigChange(id, key, value)
-                  }}
-                />
-              </label>
-            ))
-          )}
+        {portRows > 0 ? (
+          <div
+            className={`workflow-node-ports-section ${twoColumns ? 'workflow-node-ports-grid' : 'workflow-node-ports-single'}`}
+          >
+            {inputPorts.length > 0 ? (
+              <div className="workflow-node-ports-col-in">
+                <div className="workflow-node-ports-header-in">← Inputs</div>
+                {inputPorts.map((port) => {
+                  const portType = resolved.inputSchema[port]
+                  const compatible = canConnectToInput(connectionDrag, id, portType)
+                  const connectable = !dragging || compatible
+                  return (
+                    <div key={port} className="workflow-node-port-in-row">
+                      <Handle
+                        type="target"
+                        position={Position.Left}
+                        id={port}
+                        isConnectable={connectable}
+                        className={inputHandleClass(connectable, compatible, dragging)}
+                        title={`Input: ${port} (${portTypeLabel(portType)})`}
+                      />
+                      <span className="workflow-port-name" title={port}>
+                        {port}
+                      </span>
+                      <PortTypeBadge portType={portType} />
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
 
-          {Object.keys(inputSchema).map((port) => (
-            <div key={`in-${port}`} className="relative py-1 pl-2 text-xs text-slate-700">
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={port}
-                className="!bg-slate-600"
-                style={{ left: -6 }}
-              />
-              in: {port} ({inputSchema[port]})
-            </div>
-          ))}
-
-          {Object.keys(outputSchema).map((port) => (
-            <div
-              key={`out-${port}`}
-              className="relative py-1 pr-2 text-right text-xs text-slate-700"
-            >
-              out: {port} ({outputSchema[port]})
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={port}
-                className="!bg-emerald-600"
-                style={{ right: -6 }}
-              />
-            </div>
-          ))}
-
-          {data.lastOutput ? (
-            <pre className="overflow-auto rounded bg-slate-50 p-2 text-[10px] text-slate-700">
-              {JSON.stringify(data.lastOutput, null, 2)}
-            </pre>
-          ) : null}
-        </div>
+            {outputPorts.length > 0 ? (
+              <div className="workflow-node-ports-col-out">
+                <div className="workflow-node-ports-header-out">Outputs →</div>
+                {outputPorts.map((port) => {
+                  const portType = resolved.outputSchema[port]
+                  const isSource =
+                    connectionDrag?.nodeId === id &&
+                    connectionDrag.handleId === port &&
+                    connectionDrag.handleType === 'source'
+                  return (
+                    <div key={port} className="workflow-node-port-out-row">
+                      <PortTypeBadge portType={portType} />
+                      <span className="workflow-port-name" title={port}>
+                        {port}
+                      </span>
+                      <Handle
+                        type="source"
+                        position={Position.Right}
+                        id={port}
+                        className={`workflow-handle-out ${isSource ? 'workflow-handle-active' : ''}`}
+                        title={`Output: ${port} (${portTypeLabel(portType)})`}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     )
   }
