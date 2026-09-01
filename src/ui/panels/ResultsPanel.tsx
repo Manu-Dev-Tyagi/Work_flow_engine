@@ -58,6 +58,17 @@ export function ResultsPanel({
         </SectionMessage>
       ) : null}
 
+      {execution?.httpResponse ? (
+        <SectionMessage title="HTTP response" appearance="success">
+          <p className="text-xs">
+            Status {execution.httpResponse.status}
+          </p>
+          <pre className="overflow-auto text-[11px]">
+            {JSON.stringify(execution.httpResponse.body, null, 2)}
+          </pre>
+        </SectionMessage>
+      ) : null}
+
       {execution?.error ? (
         <SectionMessage title={execution.error.code ?? 'Error'} appearance="error">
           <p>{execution.error.message}</p>
@@ -100,7 +111,9 @@ export function ResultsPanel({
                         ? 'inprogress'
                         : status === NodeRuntimeStatus.Failed
                           ? 'removed'
-                          : 'default'
+                          : status === NodeRuntimeStatus.Skipped
+                            ? 'default'
+                            : 'default'
                   }
                 >
                   {status}
@@ -124,6 +137,8 @@ export function ResultsPanel({
                     Duration: {result.durationMs.toFixed(2)}ms
                   </div>
                 </>
+              ) : status === NodeRuntimeStatus.Skipped ? (
+                <p className="text-xs text-slate-500">Skipped (branch not taken)</p>
               ) : (
                 <p className="text-xs text-slate-500">No result yet</p>
               )}

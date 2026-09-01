@@ -1,44 +1,12 @@
-import type { OttopilotApiContext, OttopilotEventTemplate } from './types'
+import { plutoPaths } from './config'
+import type { OttopilotEventTemplate } from './types'
 import { unwrapVestaResponse } from './unwrapResponse'
-
-const PLUTO_EVENT_TEMPLATES_PATH = '/sub-system/pluto/ottopilot/event-templates/get'
-
-function shouldProxyThroughApp(baseUrl: string): boolean {
-  const trimmed = baseUrl.trim().toLowerCase()
-  return !trimmed || trimmed.includes('intellsys.ai')
-}
-
-/**
- * Browser always calls same-origin `/api/event-templates`.
- * Vite proxies that locally; Vercel serves api/event-templates.ts.
- */
-export function buildPlutoUrl(baseUrl: string, path: string): string {
-  if (shouldProxyThroughApp(baseUrl)) return '/api/event-templates'
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  const trimmed = baseUrl.trim().replace(/\/+$/, '')
-  return `${trimmed}${normalizedPath}`
-}
+import { type PlutoAuth, plutoPost } from './plutoClient'
 
 export async function fetchEventTemplates(
-  ctx: OttopilotApiContext,
+  authOverrides?: Partial<PlutoAuth>,
 ): Promise<OttopilotEventTemplate[]> {
-  const url = buildPlutoUrl(ctx.baseUrl, PLUTO_EVENT_TEMPLATES_PATH)
-  let response: Response
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ctx.accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Workspace-Id': ctx.workspaceId,
-      },
-      body: JSON.stringify({}),
-    })
-  } catch {
-    throw new Error(
-      'Could not reach the Vesta API from the browser. Leave Base URL empty (or use https://dev.intellsys.ai) so the request goes through the app proxy.',
-    )
-  }
+  const response = await plutoPost(plutoPaths.eventTemplatesGet, {}, authOverrides)
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')

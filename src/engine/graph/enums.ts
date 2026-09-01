@@ -13,6 +13,14 @@ export enum NodeType {
   Concatenation = 'concatenation',
   ApiRequest = 'apiRequest',
   GetEventTemplate = 'getEventTemplate',
+  GetEventContainerTemplate = 'getEventContainerTemplate',
+  CreateEvent = 'createEvent',
+  FindEventContainer = 'findEventContainer',
+  CreateEventContainer = 'createEventContainer',
+  SwitchEmpty = 'switchEmpty',
+  MergeString = 'mergeString',
+  HttpRespond = 'httpRespond',
+  ObjectFromKeys = 'objectFromKeys',
 }
 
 export enum WorkflowStatus {
@@ -27,6 +35,7 @@ export enum NodeRuntimeStatus {
   Running = 'running',
   Completed = 'completed',
   Failed = 'failed',
+  Skipped = 'skipped',
 }
 
 export enum ValidationErrorCode {

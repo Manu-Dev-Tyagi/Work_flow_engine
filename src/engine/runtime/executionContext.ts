@@ -26,6 +26,11 @@ export type ExecutionContext = {
   edgeValues: Record<EdgeId, unknown>
   logs: ExecutionLog[]
   executionOrder: NodeId[]
+  triggerPayload?: Record<string, unknown>
+  httpResponse?: {
+    status: number
+    body: Record<string, unknown>
+  }
   error?: {
     code?: ValidationErrorCode
     message: string

@@ -7,7 +7,11 @@ import { NodeRuntimeStatus, NodeType, PortType } from '../../engine/graph/enums'
 import { resolveNodePorts } from '../../engine/registry/resolvePorts'
 import type { Registry } from '../../engine/registry/registry'
 import type { WorkflowNodeData } from '../canvas/adapters'
+import { GetEventContainerTemplateConfig } from './GetEventContainerTemplateConfig'
 import { GetEventTemplateConfig } from './GetEventTemplateConfig'
+import { CreateEventContainerConfig } from './CreateEventContainerConfig'
+import { FindEventContainerConfig } from './FindEventContainerConfig'
+import { ObjectFromKeysConfig } from './ObjectFromKeysConfig'
 
 function statusAppearance(
   status?: NodeRuntimeStatus,
@@ -19,6 +23,8 @@ function statusAppearance(
       return 'success'
     case NodeRuntimeStatus.Failed:
       return 'removed'
+    case NodeRuntimeStatus.Skipped:
+      return 'default'
     default:
       return 'default'
   }
@@ -34,10 +40,18 @@ export function createWorkflowNodeType(registry: Registry) {
     const outputSchema = resolved.outputSchema
     const configSchema = definition?.configurationSchema ?? {}
     const isGetEventTemplate = data.nodeType === NodeType.GetEventTemplate
+    const isGetEventContainerTemplate = data.nodeType === NodeType.GetEventContainerTemplate
+    const isCreateEventContainer = data.nodeType === NodeType.CreateEventContainer
+    const isFindEventContainer = data.nodeType === NodeType.FindEventContainer
+    const isObjectFromKeys = data.nodeType === NodeType.ObjectFromKeys
     const displayLabel =
       isGetEventTemplate && data.configuration.templateDisplayName
         ? `Get Event Template: ${String(data.configuration.templateDisplayName)}`
-        : data.label
+        : isGetEventContainerTemplate && data.configuration.templateDisplayName
+          ? `Get Event Container Template: ${String(data.configuration.templateDisplayName)}`
+          : isCreateEventContainer && data.configuration.organizationalUnitDisplayName
+            ? `Create Event Container: ${String(data.configuration.organizationalUnitDisplayName)}`
+            : data.label
 
     return (
       <div
@@ -77,8 +91,31 @@ export function createWorkflowNodeType(registry: Registry) {
             <GetEventTemplateConfig
               nodeId={id}
               configuration={data.configuration}
-              onConfigChange={data.onConfigChange}
               onConfigBatchChange={data.onConfigBatchChange}
+            />
+          ) : isGetEventContainerTemplate ? (
+            <GetEventContainerTemplateConfig
+              nodeId={id}
+              configuration={data.configuration}
+              onConfigBatchChange={data.onConfigBatchChange}
+            />
+          ) : isCreateEventContainer ? (
+            <CreateEventContainerConfig
+              nodeId={id}
+              configuration={data.configuration}
+              onConfigBatchChange={data.onConfigBatchChange}
+            />
+          ) : isFindEventContainer ? (
+            <FindEventContainerConfig
+              nodeId={id}
+              configuration={data.configuration}
+              onConfigBatchChange={data.onConfigBatchChange}
+            />
+          ) : isObjectFromKeys ? (
+            <ObjectFromKeysConfig
+              nodeId={id}
+              configuration={data.configuration}
+              onConfigChange={data.onConfigChange}
             />
           ) : (
             Object.entries(configSchema).map(([key, portType]) => (

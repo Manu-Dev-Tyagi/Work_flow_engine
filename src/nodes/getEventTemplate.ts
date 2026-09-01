@@ -1,18 +1,20 @@
 import { NodeType, PortType } from '../engine/graph/enums'
 import type { NodeDefinition } from '../engine/registry/types'
 import {
+  assertRequiredColumnValues,
+  augmentColumnValuesFromContainer,
   buildColumnPortKey,
+  buildColumnValuesFromInput,
   columnPortType,
   getPhysicalColumns,
+  normalizeContainerTemplate,
   parseCachedTemplate,
 } from '../integrations/vesta/columns'
 import { fetchEventTemplates, findTemplateById } from '../integrations/vesta/eventTemplatesApi'
+import { resolvePlutoAuth, type PlutoAuth } from '../integrations/vesta/plutoClient'
 import type { OttopilotEventTemplate } from '../integrations/vesta/types'
 
 type Config = {
-  baseUrl: string
-  workspaceId: string
-  accessToken: string
   templateId: string
   templateDisplayName: string
   cachedTemplate: OttopilotEventTemplate | null
@@ -43,15 +45,11 @@ const FIXED_OUTPUT_SCHEMA = {
   columnValues: PortType.Object,
 } as const
 
-function resolveAuth(
-  configuration: Config,
-  input: Input,
-): { baseUrl: string; workspaceId: string; accessToken: string } {
-  const workspaceId = (input.workspaceId ?? configuration.workspaceId)?.trim()
-  const accessToken = (input.accessToken ?? configuration.accessToken)?.trim()
-  if (!workspaceId) throw new Error('Get Event Template: workspaceId is required')
-  if (!accessToken) throw new Error('Get Event Template: accessToken is required')
-  return { baseUrl: configuration.baseUrl?.trim() ?? '', workspaceId, accessToken }
+function resolveAuth(input: Input): PlutoAuth {
+  return resolvePlutoAuth({
+    workspaceId: input.workspaceId ? String(input.workspaceId) : undefined,
+    accessToken: input.accessToken ? String(input.accessToken) : undefined,
+  })
 }
 
 function buildDynamicInputSchema(configuration: Config): Record<string, PortType> {
@@ -66,9 +64,6 @@ export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> =
   type: NodeType.GetEventTemplate,
   label: 'Get Event Template',
   configurationSchema: {
-    baseUrl: PortType.String,
-    workspaceId: PortType.String,
-    accessToken: PortType.String,
     templateId: PortType.String,
     templateDisplayName: PortType.String,
     cachedTemplate: PortType.Object,
@@ -76,6 +71,9 @@ export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> =
   inputSchema: {
     accessToken: PortType.String,
     workspaceId: PortType.String,
+    fields: PortType.Object,
+    containerColumnValues: PortType.Object,
+    containerTemplate: PortType.Object,
   },
   outputSchema: FIXED_OUTPUT_SCHEMA,
   resolvePorts(configuration) {
@@ -83,6 +81,9 @@ export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> =
       inputSchema: {
         accessToken: PortType.String,
         workspaceId: PortType.String,
+        fields: PortType.Object,
+        containerColumnValues: PortType.Object,
+        containerTemplate: PortType.Object,
         ...buildDynamicInputSchema(configuration),
       },
       outputSchema: { ...FIXED_OUTPUT_SCHEMA },
@@ -92,7 +93,7 @@ export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> =
     const dynamic = getPhysicalColumns(parseCachedTemplate(configuration.cachedTemplate)).map((c) =>
       buildColumnPortKey(c),
     )
-    return ['accessToken', 'workspaceId', ...dynamic]
+    return ['accessToken', 'workspaceId', 'fields', 'containerColumnValues', 'containerTemplate', ...dynamic]
   },
   execute: async ({ configuration, input }) => {
     const templateId = configuration.templateId?.trim()
@@ -100,19 +101,21 @@ export const getEventTemplateDefinition: NodeDefinition<Config, Input, Output> =
       throw new Error('Get Event Template: select a template in node configuration')
     }
 
-    const auth = resolveAuth(configuration, input)
+    const auth = resolveAuth(input)
     const template = findTemplateById(await fetchEventTemplates(auth), templateId)
     if (!template) {
       throw new Error(`Get Event Template: template ${templateId} not found in workspace`)
     }
 
-    const columnValues: Record<string, unknown> = {}
-    for (const column of getPhysicalColumns(template)) {
-      const portKey = buildColumnPortKey(column)
-      if (portKey in input && input[portKey] !== undefined) {
-        columnValues[column.id] = input[portKey]
-      }
-    }
+    const columnValues = augmentColumnValuesFromContainer(
+      template,
+      normalizeContainerTemplate(input.containerTemplate),
+      input.containerColumnValues && typeof input.containerColumnValues === 'object'
+        ? (input.containerColumnValues as Record<string, unknown>)
+        : null,
+      buildColumnValuesFromInput(template, input),
+    )
+    assertRequiredColumnValues(template, columnValues, 'Get Event Template')
 
     return {
       template,

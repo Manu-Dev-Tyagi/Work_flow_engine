@@ -7,13 +7,16 @@ import {
   createIdleContext,
   type ExecutionContext,
 } from './runtime/executionContext'
-import { execute, type RuntimeHooks } from './runtime/runtime'
+import type { RunWorkflowOptions } from './runtime/runContext'
+import { execute } from './runtime/runtime'
 import { validateGraph } from './validation/validateGraph'
+
+export type { RunWorkflowOptions } from './runtime/runContext'
 
 export async function runWorkflow(
   graph: Graph,
   registry: Registry,
-  hooks: RuntimeHooks = {},
+  options: RunWorkflowOptions = {},
 ): Promise<ExecutionContext> {
   const validation = validateGraph(graph, registry)
 
@@ -29,10 +32,10 @@ export async function runWorkflow(
     for (const error of validation.errors) {
       appendLog(ctx, LogLevel.Error, error.message, error.nodeId)
     }
-    hooks.onContextUpdate?.(structuredClone(ctx))
+    options.onContextUpdate?.(structuredClone(ctx))
     return ctx
   }
 
   const compiled = compileGraph(graph)
-  return execute(compiled, registry, hooks)
+  return execute(compiled, registry, options)
 }

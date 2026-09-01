@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/vesta/:path*", "destination": "/api/vesta" },
+    { "source": "/api/workflow-run", "destination": "/api/workflow-run" }
+  ]
+}

@@ -1,5 +1,15 @@
 import type { NodeType, PortType } from '../graph/enums'
 import type { ResolvedPortSchemas } from './resolvePorts'
+import type { NodeRunContext } from '../runtime/runContext'
+
+export type NodeExecuteArgs<
+  C extends Record<string, unknown>,
+  I extends Record<string, unknown>,
+> = {
+  configuration: C
+  input: I
+  run?: NodeRunContext
+}
 
 export type NodeDefinition<
   C extends Record<string, unknown> = Record<string, unknown>,
@@ -15,7 +25,9 @@ export type NodeDefinition<
   resolvePorts?: (configuration: C) => ResolvedPortSchemas
   /** Input ports that may remain unwired (config provides fallback or field is optional). */
   resolveOptionalInputPorts?: (configuration: C) => ReadonlyArray<string>
-  execute: (args: { configuration: C; input: I }) => O | Promise<O>
+  /** When set, the node runs only if at least one of these inputs received a value on its wire. */
+  resolveActivationInputPorts?: (configuration: C) => ReadonlyArray<string>
+  execute: (args: NodeExecuteArgs<C, I>) => O | Promise<O>
 }
 
 export type AnyNodeDefinition = NodeDefinition<

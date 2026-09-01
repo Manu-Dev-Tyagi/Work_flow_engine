@@ -28,3 +28,13 @@ export function resolveOptionalInputPorts(
   }
   return new Set()
 }
+
+export function resolveActivationInputPorts(
+  definition: AnyNodeDefinition,
+  configuration: Record<string, unknown>,
+): ReadonlySet<string> | null {
+  if (definition.resolveActivationInputPorts) {
+    return new Set(definition.resolveActivationInputPorts(configuration))
+  }
+  return null
+}

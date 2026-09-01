@@ -18,9 +18,11 @@ import {
   clearSavedGraph,
   createEmptyGraph,
   createNodeInstance,
+  loadLeadCreateTemplate,
   loadGraph,
   saveGraph,
   schedulePersistGraph,
+  LEAD_CREATE_TRIGGER_JSON,
   type ConnectionMessage,
 } from '../ui/state/graphStore'
 import type { Graph } from '../engine/graph/types'
@@ -34,6 +36,7 @@ function AppShell() {
   const [execution, setExecution] = useState<ExecutionContext | null>(null)
   const [connectionMessage, setConnectionMessage] = useState<ConnectionMessage>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const [triggerJson, setTriggerJson] = useState(LEAD_CREATE_TRIGGER_JSON)
   const getViewportCenterRef = useRef<ViewportCenterGetter>(() => ({ x: 80, y: 80 }))
 
   const commitGraph = useCallback((updater: (current: Graph) => Graph) => {
@@ -131,7 +134,25 @@ function AppShell() {
   const handleRun = () => {
     setIsRunning(true)
     setConnectionMessage(null)
+    let triggerPayload: Record<string, unknown> | undefined
+    try {
+      const parsed = JSON.parse(triggerJson) as unknown
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        triggerPayload = parsed as Record<string, unknown>
+      } else {
+        throw new Error('Trigger JSON must be an object')
+      }
+    } catch (err) {
+      setIsRunning(false)
+      setConnectionMessage({
+        code: 'INVALID_TRIGGER',
+        message: err instanceof Error ? err.message : 'Invalid trigger JSON',
+      })
+      return
+    }
+
     void runWorkflow(graph, registry, {
+      triggerPayload,
       stepDelayMs: 350,
       onContextUpdate: (ctx) => setExecution(ctx),
     }).then((ctx) => {
@@ -142,6 +163,15 @@ function AppShell() {
 
   const handleSave = () => {
     saveGraph(graph)
+  }
+
+  const handleLoadTemplate = () => {
+    const template = loadLeadCreateTemplate()
+    setGraph(template)
+    schedulePersistGraph(template)
+    setTriggerJson(LEAD_CREATE_TRIGGER_JSON)
+    setExecution(null)
+    setConnectionMessage(null)
   }
 
   const handleLoad = () => {
@@ -173,13 +203,17 @@ function AppShell() {
         onRun={handleRun}
         onSave={handleSave}
         onLoad={handleLoad}
+        onLoadTemplate={handleLoadTemplate}
         onClear={handleClear}
         isRunning={isRunning}
+        triggerJson={triggerJson}
+        onTriggerJsonChange={setTriggerJson}
       />
       <main className="relative min-h-0 min-w-0">
         <WorkflowCanvas
           registry={registry}
           graph={graph}
+          execution={execution}
           nodes={nodes}
           edges={edges}
           onNodesChange={handleNodesChange}

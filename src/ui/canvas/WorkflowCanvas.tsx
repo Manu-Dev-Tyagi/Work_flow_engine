@@ -17,6 +17,8 @@ import '@xyflow/react/dist/style.css'
 import { useLayoutEffect, useRef, type MutableRefObject } from 'react'
 import type { Registry } from '../../engine/registry/registry'
 import type { Graph } from '../../engine/graph/types'
+import type { ExecutionContext } from '../../engine/runtime/executionContext'
+import { GraphProvider } from '../graph/GraphContext'
 import { createWorkflowNodeType } from '../nodes/WorkflowNode'
 import type { WorkflowNodeData } from './adapters'
 import { checkConnection } from './connectionValidation'
@@ -32,6 +34,7 @@ export type ViewportCenterGetter = () => { x: number; y: number }
 
 type Props = {
   registry: Registry
+  execution: ExecutionContext | null
   graph: Graph
   nodes: Node<WorkflowNodeData>[]
   edges: Edge[]
@@ -94,6 +97,7 @@ function sameItems<T>(left: T[], right: T[]): boolean {
 function WorkflowCanvasInner({
   registry,
   graph,
+  execution,
   nodes,
   edges,
   onNodesChange,
@@ -164,8 +168,9 @@ function WorkflowCanvasInner({
   }
 
   return (
-    <div ref={wrapperRef} className="relative h-full w-full">
-      <ReactFlow
+    <GraphProvider graph={graph} execution={execution}>
+      <div ref={wrapperRef} className="relative h-full w-full">
+        <ReactFlow
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
@@ -210,7 +215,8 @@ function WorkflowCanvasInner({
           )}
         />
       </ReactFlow>
-    </div>
+      </div>
+    </GraphProvider>
   )
 }
 

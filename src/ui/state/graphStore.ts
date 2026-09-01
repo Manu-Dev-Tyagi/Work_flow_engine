@@ -3,6 +3,12 @@ import type { ExecutionContext } from '../../engine/runtime/executionContext'
 import { createId } from '../../engine/graph/ids'
 import { NodeType } from '../../engine/graph/enums'
 import type { NodeInstance } from '../../engine/graph/types'
+import {
+  leadCreateTemplate,
+  LEAD_CREATE_TRIGGER_JSON,
+} from '../../fixtures/templates/leadCreate'
+
+export { LEAD_CREATE_TRIGGER_JSON }
 
 export type ConnectionMessage = {
   code: string
@@ -32,20 +38,37 @@ export function defaultConfiguration(type: NodeType): Record<string, unknown> {
       return { a: '' }
     case NodeType.ApiRequest:
       return {
-        url: 'https://jsonplaceholder.typicode.com/users',
-        countPath: '0.count',
-        namePath: '0.name',
-        locPath: '0.address.city',
+        sampleBody: LEAD_CREATE_TRIGGER_JSON,
+        matchField: 'contactNumber',
       }
     case NodeType.GetEventTemplate:
       return {
-        baseUrl: '',
-        workspaceId: '',
-        accessToken: '',
         templateId: '',
         templateDisplayName: '',
         cachedTemplate: null,
       }
+    case NodeType.GetEventContainerTemplate:
+      return {
+        templateId: '',
+        templateDisplayName: '',
+        cachedContainerTemplate: null,
+      }
+    case NodeType.CreateEvent:
+      return {}
+    case NodeType.FindEventContainer:
+      return {
+        matchColumnId: '',
+        matchColumnDisplayName: '',
+      }
+    case NodeType.CreateEventContainer:
+      return { organizationalUnitId: '', organizationalUnitDisplayName: '' }
+    case NodeType.SwitchEmpty:
+    case NodeType.MergeString:
+      return {}
+    case NodeType.HttpRespond:
+      return { statusCode: 200 }
+    case NodeType.ObjectFromKeys:
+      return { firstKey: 'eventContainerId', secondKey: 'eventId' }
     case NodeType.Addition:
     case NodeType.Concatenation:
       return {}
@@ -62,6 +85,10 @@ export function createNodeInstance(
     position,
     configuration: defaultConfiguration(type),
   }
+}
+
+export function loadLeadCreateTemplate(): Graph {
+  return structuredClone(leadCreateTemplate)
 }
 
 const STORAGE_KEY = 'workflow-engine-graph'

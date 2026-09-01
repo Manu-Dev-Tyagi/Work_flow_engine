@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import Button from '@atlaskit/button/new'
 import SectionMessage from '@atlaskit/section-message'
-import { DebouncedTextField } from './DebouncedTextField'
 import Spinner from '@atlaskit/spinner'
 import { fetchEventTemplates } from '../../integrations/vesta/eventTemplatesApi'
+import { getVestaAccessToken, getVestaWorkspaceId } from '../../integrations/vesta/config'
 import type { OttopilotEventTemplate } from '../../integrations/vesta/types'
 import { getPhysicalColumns } from '../../integrations/vesta/columns'
 
 type Props = {
   nodeId: string
   configuration: Record<string, unknown>
-  onConfigChange: (nodeId: string, key: string, value: unknown) => void
   onConfigBatchChange: (nodeId: string, patch: Record<string, unknown>) => void
 }
 
@@ -22,24 +21,21 @@ function shortId(id: string): string {
 export function GetEventTemplateConfig({
   nodeId,
   configuration,
-  onConfigChange,
   onConfigBatchChange,
 }: Props) {
   const [templates, setTemplates] = useState<OttopilotEventTemplate[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [baseUrl, setBaseUrl] = useState(String(configuration.baseUrl ?? ''))
-  const [workspaceId, setWorkspaceId] = useState(String(configuration.workspaceId ?? ''))
-  const [accessToken, setAccessToken] = useState(String(configuration.accessToken ?? ''))
   const templateId = String(configuration.templateId ?? '')
   const cachedTemplate = configuration.cachedTemplate as OttopilotEventTemplate | null
+  const hasCredentials = Boolean(getVestaWorkspaceId() && getVestaAccessToken())
 
   const handleFetchTemplates = async () => {
     setError(null)
     setLoading(true)
     try {
-      const list = await fetchEventTemplates({ baseUrl, workspaceId, accessToken })
+      const list = await fetchEventTemplates()
       const active = list.filter((t) => t.displayName)
       setTemplates(active)
       if (templateId) {
@@ -79,44 +75,21 @@ export function GetEventTemplateConfig({
 
   return (
     <div className="nodrag nopan nowheel grid gap-2">
-      <label className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
-        <span>Base URL (leave empty — local and Vercel both proxy to Vesta)</span>
-        <DebouncedTextField
-          name={`${nodeId}-baseUrl`}
-          placeholder="empty or https://dev.intellsys.ai"
-          committedValue={String(configuration.baseUrl ?? '')}
-          onDraftChange={setBaseUrl}
-          onCommit={(value) => onConfigChange(nodeId, 'baseUrl', value)}
-        />
-      </label>
-
-      <label className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
-        <span>Workspace ID</span>
-        <DebouncedTextField
-          name={`${nodeId}-workspaceId`}
-          committedValue={String(configuration.workspaceId ?? '')}
-          onDraftChange={setWorkspaceId}
-          onCommit={(value) => onConfigChange(nodeId, 'workspaceId', value)}
-        />
-      </label>
-
-      <label className="nodrag nopan nowheel grid gap-1 text-xs text-slate-600">
-        <span>Access token</span>
-        <DebouncedTextField
-          name={`${nodeId}-accessToken`}
-          type="password"
-          committedValue={String(configuration.accessToken ?? '')}
-          onDraftChange={setAccessToken}
-          onCommit={(value) => onConfigChange(nodeId, 'accessToken', value)}
-        />
-      </label>
+      {!hasCredentials ? (
+        <SectionMessage appearance="warning">
+          <p className="text-xs">
+            Set <code>VITE_VESTA_WORKSPACE_ID</code> and <code>VITE_VESTA_ACCESS_TOKEN</code> in
+            your <code>.env</code> file (see <code>.env.example</code>).
+          </p>
+        </SectionMessage>
+      ) : null}
 
       <span className="nodrag nopan nowheel">
         <Button
           appearance="primary"
           spacing="compact"
           onClick={() => void handleFetchTemplates()}
-          isDisabled={loading || !workspaceId || !accessToken}
+          isDisabled={loading || !hasCredentials}
         >
           {loading ? <Spinner size="small" /> : 'Load templates'}
         </Button>

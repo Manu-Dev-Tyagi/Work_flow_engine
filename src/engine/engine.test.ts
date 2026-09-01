@@ -20,7 +20,7 @@ import {
   generateStringDefinition,
   registerAll,
 } from '../nodes'
-import { getByPath, addCountToEveryObject } from '../nodes/apiRequest'
+import { getByPath } from '../utilities/jsonPath'
 import type { Graph } from '../engine/graph/types'
 
 function registryWithAll() {
@@ -43,8 +43,8 @@ describe('registry and nodes', () => {
     const registry = registryWithAll()
     expect(registry.get(NodeType.Addition)?.type).toBe(NodeType.Addition)
     expect(registry.get(NodeType.GenerateNumber)?.outputSchema.a).toBe(PortType.Number)
-    expect(registry.get(NodeType.ApiRequest)?.outputSchema.data).toBe(PortType.Object)
-    expect(registry.get(NodeType.ApiRequest)?.outputSchema.count).toBe(PortType.Number)
+    expect(registry.get(NodeType.ApiRequest)?.outputSchema.body).toBe(PortType.Object)
+    expect(registry.get(NodeType.ApiRequest)?.outputSchema.matchValue).toBe(PortType.String)
   })
 
   it('executes each node in isolation', async () => {
@@ -74,63 +74,39 @@ describe('apiRequest', () => {
     expect(getByPath(data, '0.address.city')).toBe('Gwenborough')
   })
 
-  it('addCountToEveryObject adds count key on each object', () => {
-    const users = [
-      { name: 'A', email: 'a@x.com' },
-      { name: 'B', email: 'b@x.com' },
-    ]
-    expect(addCountToEveryObject(users)).toEqual([
-      { name: 'A', email: 'a@x.com', count: 1 },
-      { name: 'B', email: 'b@x.com', count: 2 },
-    ])
-  })
-
-  it('fetches JSON, adds per-object count, projects name/loc', async () => {
-    const payload = [
-      { id: 1, name: 'Leanne Graham', address: { city: 'Gwenborough' } },
-      { id: 2, name: 'Ervin Howell', address: { city: 'Wisokyburgh' } },
-    ]
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => payload,
-      })),
-    )
-
+  it('uses sampleBody and matchField when no trigger payload', async () => {
     const result = await apiRequestDefinition.execute({
       configuration: {
-        url: 'https://example.com/users',
-        countPath: '0.count',
-        namePath: '0.name',
-        locPath: '0.address.city',
+        sampleBody: JSON.stringify({ contactNumber: '+91111', customerName: 'Testing Workflow Engine' }),
+        matchField: 'contactNumber',
       },
       input: {},
     })
 
-    expect(result.count).toBe(1)
-    expect(result.name).toBe('Leanne Graham')
-    expect(result.loc).toBe('Gwenborough')
-    expect(result.data).toEqual([
-      { ...payload[0], count: 1 },
-      { ...payload[1], count: 2 },
-    ])
-    expect((result.data as Record<string, unknown>[])[0].count).toBe(1)
-    expect((result.data as Record<string, unknown>[])[1].count).toBe(2)
+    expect(result.body).toEqual({
+      contactNumber: '+91111',
+      customerName: 'Testing Workflow Engine',
+    })
+    expect(result.matchValue).toBe('+91111')
+  })
+
+  it('prefers run triggerPayload over sampleBody', async () => {
+    const result = await apiRequestDefinition.execute({
+      configuration: {
+        sampleBody: '{}',
+        matchField: 'contactNumber',
+      },
+      input: {},
+      run: {
+        triggerPayload: { contactNumber: '+92222' },
+        setHttpResponse: () => {},
+      },
+    })
+
+    expect(result.matchValue).toBe('+92222')
   })
 
   it('runs in a graph and exposes typed ports', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [
-          { id: 1, name: 'A', address: { city: 'X' } },
-          { id: 2, name: 'B', address: { city: 'Y' } },
-        ],
-      })),
-    )
-
     const apiId = createId()
     const graph: Graph = {
       id: createId(),
@@ -140,10 +116,8 @@ describe('apiRequest', () => {
           type: NodeType.ApiRequest,
           position: { x: 0, y: 0 },
           configuration: {
-            url: 'https://example.com/users',
-            countPath: '1.count',
-            namePath: '0.name',
-            locPath: '0.address.city',
+            sampleBody: JSON.stringify({ contactNumber: '+91111' }),
+            matchField: 'contactNumber',
           },
         },
       ],
@@ -152,12 +126,8 @@ describe('apiRequest', () => {
 
     const ctx = await runWorkflow(graph, registryWithAll())
     expect(ctx.status).toBe(WorkflowStatus.Completed)
-    expect(ctx.results[apiId]?.output.name).toBe('A')
-    expect(ctx.results[apiId]?.output.count).toBe(2)
-    expect(ctx.results[apiId]?.output.data).toEqual([
-      { id: 1, name: 'A', address: { city: 'X' }, count: 1 },
-      { id: 2, name: 'B', address: { city: 'Y' }, count: 2 },
-    ])
+    expect(ctx.results[apiId]?.output.matchValue).toBe('+91111')
+    expect(ctx.results[apiId]?.output.body).toEqual({ contactNumber: '+91111' })
   })
 })
 
