@@ -1,23 +1,18 @@
 import { NodeType, PortType } from '../engine/graph/enums'
 import type { NodeDefinition } from '../engine/registry/types'
 import {
-  applyPortKeyOverridesToColumnValues,
   assertRequiredColumnValues,
   augmentColumnValuesFromContainer,
   normalizeContainerTemplate,
   parseCachedTemplate,
   readContainerAdditionalColumnValues,
-  readContainerId,
   summarizeColumnValues,
 } from '../integrations/vesta/columns'
 import { createEvent } from '../integrations/vesta/eventsApi'
 import { formatPlutoOpaqueCreateError } from '../integrations/vesta/unwrapResponse'
 import { resolvePlutoAuth, type PlutoAuth } from '../integrations/vesta/plutoClient'
 
-type Config = {
-  /** camelCase port keys applied when an existing container is wired (repeat-lead path). */
-  existingContainerFieldOverrides?: Record<string, unknown>
-}
+type Config = Record<string, never>
 
 type Input = {
   templateId: string
@@ -42,7 +37,7 @@ function resolveAuth(input: Input): PlutoAuth {
   })
 }
 
-function resolveColumnValues(input: Input, configuration: Config): Record<string, unknown> {
+function resolveColumnValues(input: Input): Record<string, unknown> {
   const base =
     input.columnValues && typeof input.columnValues === 'object'
       ? { ...input.columnValues }
@@ -54,33 +49,22 @@ function resolveColumnValues(input: Input, configuration: Config): Record<string
   const eventTemplate = parseCachedTemplate(input.eventTemplate)
   const containerTemplate = normalizeContainerTemplate(input.containerTemplate)
   const containerColumnValues = readContainerAdditionalColumnValues(input.container)
-  let columnValues = base
   if (eventTemplate && containerTemplate && containerColumnValues) {
-    columnValues = augmentColumnValuesFromContainer(
+    return augmentColumnValuesFromContainer(
       eventTemplate,
       containerTemplate,
       containerColumnValues,
-      columnValues,
+      base,
     )
   }
 
-  if (readContainerId(input.container) && eventTemplate) {
-    columnValues = applyPortKeyOverridesToColumnValues(
-      eventTemplate,
-      columnValues,
-      configuration.existingContainerFieldOverrides,
-    )
-  }
-
-  return columnValues
+  return base
 }
 
 export const createEventDefinition: NodeDefinition<Config, Input, Output> = {
   type: NodeType.CreateEvent,
   label: 'Create Event',
-  configurationSchema: {
-    existingContainerFieldOverrides: PortType.Object,
-  },
+  configurationSchema: {},
   inputSchema: {
     templateId: PortType.String,
     eventContainerId: PortType.String,
@@ -105,14 +89,14 @@ export const createEventDefinition: NodeDefinition<Config, Input, Output> = {
       'workspaceId',
     ]
   },
-  execute: async ({ configuration, input }) => {
+  execute: async ({ input }) => {
     const templateId = String(input.templateId ?? '').trim()
     const eventContainerId = String(input.eventContainerId ?? '').trim()
     if (!templateId) throw new Error('Create Event: templateId input is required')
     if (!eventContainerId) throw new Error('Create Event: eventContainerId input is required')
 
     const eventTemplate = parseCachedTemplate(input.eventTemplate)
-    const columnValues = resolveColumnValues(input, configuration)
+    const columnValues = resolveColumnValues(input)
     assertRequiredColumnValues(eventTemplate, columnValues, 'Create Event')
 
     const auth = resolveAuth(input)

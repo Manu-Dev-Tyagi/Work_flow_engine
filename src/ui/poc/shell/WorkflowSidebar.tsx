@@ -12,8 +12,6 @@ type Props = {
   onLoadTemplate: () => void
   onClear: () => void
   isRunning: boolean
-  triggerJson: string
-  onTriggerJsonChange: (value: string) => void
 }
 
 export function WorkflowSidebar({
@@ -25,8 +23,6 @@ export function WorkflowSidebar({
   onLoadTemplate,
   onClear,
   isRunning,
-  triggerJson,
-  onTriggerJsonChange,
 }: Props) {
   return (
     <aside className="workflow-sidebar flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -35,7 +31,8 @@ export function WorkflowSidebar({
         <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
           Drag from a <strong className="text-emerald-700">green output</strong> to a{' '}
           <strong className="text-slate-700">slate input</strong> with the{' '}
-          <strong>same type badge</strong> (string, number, or object).
+          <strong>same type badge</strong> (string, number, or object). Configure the API Request
+          node for endpoint URL or trigger JSON.
         </p>
       </header>
 
@@ -65,15 +62,6 @@ export function WorkflowSidebar({
       </div>
 
       <footer className="workflow-sidebar-footer grid gap-2 border-t border-slate-200">
-        <label className="grid gap-1.5">
-          <span className="text-xs font-medium text-slate-600">Trigger JSON</span>
-          <textarea
-            className="min-h-[72px] rounded-md border border-slate-200 p-2.5 font-mono text-[10px] focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-            value={triggerJson}
-            onChange={(e) => onTriggerJsonChange(e.currentTarget.value)}
-            spellCheck={false}
-          />
-        </label>
         <button
           type="button"
           onClick={onRun}

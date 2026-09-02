@@ -86,7 +86,7 @@ describe('createEvent execute', () => {
     expect(body.data.additionalColumnValues).toEqual({ 'event-phone': '+91999' })
   })
 
-  it('applies repeat-lead overrides when an existing container is wired', async () => {
+  it('keeps API-mapped column values when an existing container is wired', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true, data: 'event-uuid-3' }),
@@ -106,15 +106,11 @@ describe('createEvent execute', () => {
     }
 
     await createEventDefinition.execute({
-      configuration: {
-        existingContainerFieldOverrides: {
-          enquiryStatus: 'duplicate-status-id',
-        },
-      },
+      configuration: {},
       input: {
         templateId: 'template-1',
         eventContainerId: 'container-1',
-        columnValues: { 'event-status': 'open-status-id' },
+        columnValues: { 'event-status': 'duplicate-status-id' },
         eventTemplate,
         container: { id: 'container-1', additionalColumnValues: {} },
       },

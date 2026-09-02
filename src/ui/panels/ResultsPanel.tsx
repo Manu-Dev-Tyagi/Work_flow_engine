@@ -14,7 +14,6 @@ type Props = {
   execution: ExecutionContext | null
   connectionMessage: ConnectionMessage
   isRunning: boolean
-  embedded?: boolean
 }
 
 function workflowAppearance(
@@ -53,33 +52,7 @@ export function ResultsPanel({
   execution,
   connectionMessage,
   isRunning,
-  embedded = false,
 }: Props) {
-  const alerts = (
-    <>
-      {connectionMessage ? (
-        <SectionMessage title={connectionMessage.code} appearance="warning">
-          <p>{connectionMessage.message}</p>
-        </SectionMessage>
-      ) : null}
-
-      {execution?.httpResponse ? (
-        <SectionMessage title="HTTP response" appearance="success">
-          <p className="text-xs">Status {execution.httpResponse.status}</p>
-          <pre className="max-h-32 overflow-auto text-[11px]">
-            {JSON.stringify(execution.httpResponse.body, null, 2)}
-          </pre>
-        </SectionMessage>
-      ) : null}
-
-      {execution?.error ? (
-        <SectionMessage title={execution.error.code ?? 'Error'} appearance="error">
-          <p>{execution.error.message}</p>
-        </SectionMessage>
-      ) : null}
-    </>
-  )
-
   const nodeLabel = (type: Graph['nodes'][number]['type']) =>
     registry?.get(type)?.label ?? type
 
@@ -125,87 +98,62 @@ export function ResultsPanel({
     )
   })
 
-  if (embedded) {
-    return (
-      <div className="grid gap-5">
-        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-          {execution ? (
-            <Lozenge appearance={workflowAppearance(execution.status)}>{execution.status}</Lozenge>
-          ) : (
-            <Lozenge>idle</Lozenge>
-          )}
-          {isRunning ? <Spinner size="small" /> : null}
-        </div>
-
-        {alerts}
-
-        {execution?.executionOrder.length ? (
-          <div className="grid gap-2">
-            <Heading size="xsmall">Execution order</Heading>
-            <p className="text-xs text-slate-600">
-              {execution.executionOrder
-                .map((nodeId, index) => {
-                  const node = graph.nodes.find((n) => n.id === nodeId)
-                  return `${index + 1}. ${node ? nodeLabel(node.type) : nodeId}`
-                })
-                .join(' → ')}
-            </p>
-          </div>
-        ) : null}
-
-        {graph.nodes.length > 0 ? (
-          <div className="grid gap-3">
-            <Heading size="xsmall">Node results</Heading>
-            <div className="workflow-execution-cards">{nodeCards}</div>
-          </div>
-        ) : (
-          <SectionMessage title="Empty graph">
-            <p>Add nodes from the left palette, connect ports, then Run.</p>
-          </SectionMessage>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <aside className="grid grid-rows-[auto_auto_1fr] gap-3 overflow-auto border-l border-slate-200 bg-white p-4">
+    <div className="grid gap-5">
       <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-        <Heading size="small">Execution</Heading>
-        {isRunning ? <Spinner size="small" /> : null}
         {execution ? (
           <Lozenge appearance={workflowAppearance(execution.status)}>{execution.status}</Lozenge>
         ) : (
           <Lozenge>idle</Lozenge>
         )}
+        {isRunning ? <Spinner size="small" /> : null}
       </div>
 
-      {alerts}
+      {connectionMessage ? (
+        <SectionMessage title={connectionMessage.code} appearance="warning">
+          <p>{connectionMessage.message}</p>
+        </SectionMessage>
+      ) : null}
 
-      <div className="grid gap-3 content-start">
-        {execution?.executionOrder.length ? (
-          <div className="grid gap-1">
-            <Heading size="xsmall">Order</Heading>
-            <ol className="list-decimal pl-5 text-sm text-slate-700">
-              {execution.executionOrder.map((nodeId, index) => {
+      {execution?.httpResponse ? (
+        <SectionMessage title="HTTP response" appearance="success">
+          <p className="text-xs">Status {execution.httpResponse.status}</p>
+          <pre className="max-h-32 overflow-auto text-[11px]">
+            {JSON.stringify(execution.httpResponse.body, null, 2)}
+          </pre>
+        </SectionMessage>
+      ) : null}
+
+      {execution?.error ? (
+        <SectionMessage title={execution.error.code ?? 'Error'} appearance="error">
+          <p>{execution.error.message}</p>
+        </SectionMessage>
+      ) : null}
+
+      {execution?.executionOrder.length ? (
+        <div className="grid gap-2">
+          <Heading size="xsmall">Execution order</Heading>
+          <p className="text-xs text-slate-600">
+            {execution.executionOrder
+              .map((nodeId, index) => {
                 const node = graph.nodes.find((n) => n.id === nodeId)
-                return (
-                  <li key={nodeId}>
-                    {index + 1}. {node ? nodeLabel(node.type) : nodeId}
-                  </li>
-                )
-              })}
-            </ol>
-          </div>
-        ) : null}
+                return `${index + 1}. ${node ? nodeLabel(node.type) : nodeId}`
+              })
+              .join(' → ')}
+          </p>
+        </div>
+      ) : null}
 
-        <div className="grid gap-3">{nodeCards}</div>
-
-        {!execution && graph.nodes.length === 0 ? (
-          <SectionMessage title="Empty graph">
-            <p>Add nodes from the left palette, connect ports, then Run.</p>
-          </SectionMessage>
-        ) : null}
-      </div>
-    </aside>
+      {graph.nodes.length > 0 ? (
+        <div className="grid gap-3">
+          <Heading size="xsmall">Node results</Heading>
+          <div className="workflow-execution-cards">{nodeCards}</div>
+        </div>
+      ) : (
+        <SectionMessage title="Empty graph">
+          <p>Add nodes from the left palette, connect ports, then Run.</p>
+        </SectionMessage>
+      )}
+    </div>
   )
 }

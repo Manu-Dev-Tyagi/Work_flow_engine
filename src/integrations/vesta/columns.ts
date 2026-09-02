@@ -253,6 +253,22 @@ export function getMissingRequiredColumnValues(
   return missing
 }
 
+export function formatMissingRequiredColumns(
+  template: { additionalColumns: OttopilotEventTemplateAdditionalColumn[] } | null | undefined,
+  missingDisplayNames: string[],
+): string {
+  const physical = getPhysicalColumns(template)
+  const byDisplayName = new Map(
+    physical.map((column) => [column.displayName, buildColumnPortKey(column)]),
+  )
+  return missingDisplayNames
+    .map((displayName) => {
+      const portKey = byDisplayName.get(displayName)
+      return portKey ? `${displayName} → \`${portKey}\`` : displayName
+    })
+    .join(', ')
+}
+
 export function assertRequiredColumnValues(
   template: { additionalColumns: OttopilotEventTemplateAdditionalColumn[] } | null | undefined,
   columnValues: Record<string, unknown>,
@@ -261,7 +277,7 @@ export function assertRequiredColumnValues(
   const missing = getMissingRequiredColumnValues(template, columnValues)
   if (missing.length === 0) return
   throw new Error(
-    `${context}: missing required column value(s): ${missing.join(', ')}. Add camelCase keys to the trigger JSON (e.g. enquiryStatus) or wire column inputs.`,
+    `${context}: missing required column value(s): ${formatMissingRequiredColumns(template, missing)}. Add those camelCase keys to the API Request JSON (wired to \`fields\`) or connect the column input ports.`,
   )
 }
 
@@ -297,23 +313,4 @@ export function readContainerId(container: unknown): string | null {
   const id = (container as Record<string, unknown>).id
   if (typeof id !== 'string' || !id.trim()) return null
   return id.trim()
-}
-
-/** Applies camelCase field overrides onto columnValues (by displayName port key). */
-export function applyPortKeyOverridesToColumnValues(
-  template: { additionalColumns: OttopilotEventTemplateAdditionalColumn[] } | null | undefined,
-  columnValues: Record<string, unknown>,
-  overrides: Record<string, unknown> | null | undefined,
-): Record<string, unknown> {
-  if (!template || !overrides) return columnValues
-  const result = { ...columnValues }
-  for (const column of getPhysicalColumns(template)) {
-    const portKey = buildColumnPortKey(column)
-    if (!(portKey in overrides)) continue
-    const value = overrides[portKey]
-    if (value === undefined || value === null) continue
-    if (typeof value === 'string' && value.trim() === '') continue
-    result[column.id] = value
-  }
-  return result
 }

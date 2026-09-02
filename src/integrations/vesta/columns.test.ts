@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   augmentColumnValuesFromContainer,
-  applyPortKeyOverridesToColumnValues,
   buildColumnValuesFromInput,
   getMissingRequiredColumnValues,
   getPhysicalColumns,
@@ -138,26 +137,6 @@ describe('readContainerId', () => {
   it('returns id when container object has one', () => {
     expect(readContainerId({ id: 'container-1' })).toBe('container-1')
     expect(readContainerId({})).toBeNull()
-  })
-})
-
-describe('applyPortKeyOverridesToColumnValues', () => {
-  it('overrides column ids from camelCase port keys', () => {
-    const template = {
-      additionalColumns: [
-        {
-          id: 'status-col',
-          displayName: 'Enquiry Status',
-          type: 'e010f1f3-3ae3-4e48-96e8-3dfba6b217c9',
-        },
-      ],
-    }
-    const result = applyPortKeyOverridesToColumnValues(
-      template,
-      { 'status-col': 'open-id' },
-      { enquiryStatus: 'duplicate-id' },
-    )
-    expect(result).toEqual({ 'status-col': 'duplicate-id' })
   })
 })
 

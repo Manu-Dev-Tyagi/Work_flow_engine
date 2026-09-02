@@ -182,7 +182,7 @@ describe('getEventTemplate execute', () => {
         },
         input: { latitude: 12.34 },
       }),
-    ).rejects.toThrow(/missing required column value\(s\): Customer Name/)
+    ).rejects.toThrow(/missing required column value\(s\): Customer Name → `customerName`/)
   })
 })
 

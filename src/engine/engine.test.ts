@@ -90,9 +90,13 @@ describe('apiRequest', () => {
     expect(result.matchValue).toBe('+91111')
   })
 
-  it('prefers run triggerPayload over sampleBody', async () => {
+  it('prefers run triggerPayload over sampleBody and endpoint', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
     const result = await apiRequestDefinition.execute({
       configuration: {
+        endpointUrl: 'https://api.example.com/leads',
         sampleBody: '{}',
         matchField: 'contactNumber',
       },
@@ -104,6 +108,29 @@ describe('apiRequest', () => {
     })
 
     expect(result.matchValue).toBe('+92222')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('fetches endpointUrl when no trigger payload', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ contactNumber: '+93333', name: 'From API' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await apiRequestDefinition.execute({
+      configuration: {
+        endpointUrl: 'https://api.example.com/leads',
+        httpMethod: 'GET',
+        sampleBody: '{}',
+        matchField: 'contactNumber',
+      },
+      input: {},
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('https://api.example.com/leads', { method: 'GET' })
+    expect(result.body).toEqual({ contactNumber: '+93333', name: 'From API' })
+    expect(result.matchValue).toBe('+93333')
   })
 
   it('runs in a graph and exposes typed ports', async () => {

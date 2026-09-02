@@ -19,10 +19,10 @@ import {
   createNodeInstance,
   loadLeadCreateTemplate,
   loadGraph,
+  parseApiTriggerPayload,
   sanitizeGraph,
   saveGraph,
   schedulePersistGraph,
-  LEAD_CREATE_TRIGGER_JSON,
   type ConnectionMessage,
 } from '../ui/state/graphStore'
 import type { Graph } from '../engine/graph/types'
@@ -42,7 +42,6 @@ function AppShell() {
   const [execution, setExecution] = useState<ExecutionContext | null>(null)
   const [connectionMessage, setConnectionMessage] = useState<ConnectionMessage>(null)
   const [isRunning, setIsRunning] = useState(false)
-  const [triggerJson, setTriggerJson] = useState(LEAD_CREATE_TRIGGER_JSON)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [configModalNodeId, setConfigModalNodeId] = useState<string | null>(null)
   const getViewportCenterRef = useRef<ViewportCenterGetter>(() => ({ x: 80, y: 80 }))
@@ -179,17 +178,12 @@ function AppShell() {
     setConnectionMessage(null)
     let triggerPayload: Record<string, unknown> | undefined
     try {
-      const parsed = JSON.parse(triggerJson) as unknown
-      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        triggerPayload = parsed as Record<string, unknown>
-      } else {
-        throw new Error('Trigger JSON must be an object')
-      }
+      triggerPayload = parseApiTriggerPayload(graph)
     } catch (err) {
       setIsRunning(false)
       setConnectionMessage({
         code: 'INVALID_TRIGGER',
-        message: err instanceof Error ? err.message : 'Invalid trigger JSON',
+        message: err instanceof Error ? err.message : 'Invalid API Request JSON on trigger node',
       })
       return
     }
@@ -212,7 +206,6 @@ function AppShell() {
     const template = loadLeadCreateTemplate()
     setGraph(template)
     schedulePersistGraph(template)
-    setTriggerJson(LEAD_CREATE_TRIGGER_JSON)
     setExecution(null)
     setConnectionMessage(null)
     setSelectedNodeId(null)
@@ -256,8 +249,6 @@ function AppShell() {
             onLoadTemplate={handleLoadTemplate}
             onClear={handleClear}
             isRunning={isRunning}
-            triggerJson={triggerJson}
-            onTriggerJsonChange={setTriggerJson}
           />
         }
         workspace={
@@ -283,7 +274,6 @@ function AppShell() {
                 execution={execution}
                 connectionMessage={connectionMessage}
                 isRunning={isRunning}
-                embedded
               />
             </WorkflowBottomDrawer>
           </>

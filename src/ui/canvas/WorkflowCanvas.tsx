@@ -207,6 +207,7 @@ function WorkflowCanvasInner({
           onlyRenderVisibleElements
           defaultEdgeOptions={{ style: { strokeWidth: 2 } }}
           connectionLineStyle={{ strokeWidth: 2 }}
+          elevateEdgesOnSelect
           nodeDragThreshold={2}
           onNodeClick={(_event, node) => onSelectNode(node.id)}
           onNodeDoubleClick={(_event, node) => onOpenConfig(node.id)}

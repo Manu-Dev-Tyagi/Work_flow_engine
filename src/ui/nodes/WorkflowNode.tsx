@@ -1,5 +1,5 @@
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import type { MouseEvent } from 'react'
+import { Handle, Position, useUpdateNodeInternals, type Node, type NodeProps } from '@xyflow/react'
+import { useEffect, type MouseEvent } from 'react'
 import { NodeRuntimeStatus, type PortType } from '../../engine/graph/enums'
 import { resolveNodePorts } from '../../engine/registry/resolvePorts'
 import type { Registry } from '../../engine/registry/registry'
@@ -14,8 +14,6 @@ import {
   portTypeLabel,
   resolveNodeDisplayLabel,
 } from '../poc/nodes/nodeDisplay'
-
-const PORT_ROW_HEIGHT_PX = 26
 
 function nodeStatusTone(
   status?: NodeRuntimeStatus,
@@ -69,6 +67,12 @@ export function createWorkflowNodeType(registry: Registry) {
     const status = data.status ?? NodeRuntimeStatus.Waiting
     const connectionDrag = useConnectionDrag()
     const dragging = connectionDrag !== null
+    const updateNodeInternals = useUpdateNodeInternals()
+    const twoColumns = inputPorts.length > 0 && outputPorts.length > 0
+
+    useEffect(() => {
+      updateNodeInternals(id)
+    }, [id, inputPorts.length, outputPorts.length, data.configuration, updateNodeInternals])
 
     const openConfig = (event: MouseEvent) => {
       event.stopPropagation()
@@ -86,15 +90,10 @@ export function createWorkflowNodeType(registry: Registry) {
               ? `ring-2 ${visual.ring} border-slate-300`
               : 'border-slate-200 hover:border-slate-300'
 
-    const twoColumns = inputPorts.length > 0 && outputPorts.length > 0
-
     return (
       <div
         className={`workflow-node-card relative rounded-lg border bg-white shadow-sm transition ${statusRing}`}
-        style={{
-          width: WORKFLOW_NODE_WIDTH_PX,
-          minHeight: portRows > 0 ? 96 + portRows * PORT_ROW_HEIGHT_PX : 96,
-        }}
+        style={{ width: WORKFLOW_NODE_WIDTH_PX }}
       >
         <div className={`h-1.5 rounded-t-lg ${visual.header}`} />
 

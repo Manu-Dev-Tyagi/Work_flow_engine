@@ -46,6 +46,8 @@ export const LEAD_CREATE_TEMPLATE_IDS = {
  */
 export const LEAD_CREATE_TRIGGER_BODY: Record<string, unknown> = {
   contactNumber: '+911234567890',
+  /** Required when the event template has a physical "Order ID" column. */
+  orderId: 'order-WE-001',
   customerName: 'Testing Workflow Engine',
   customerState: 'Karnataka',
   customerCity: 'Bangalore',
@@ -60,12 +62,22 @@ export const LEAD_CREATE_TRIGGER_BODY: Record<string, unknown> = {
   leadStatus: 'c93262f3-58fc-4d64-9de9-afed9e3fa561',
   /** Amaron Enquiry event — required NOT NULL (Open on new lead). */
   enquiryStatus: '3641d0ee-f9c3-4e2c-8d33-456164d0f73e',
+  /** Amaron Calls event — Call Status (Scheduled). */
+  callStatus: 'ce092834-766b-4426-857a-240a60976d3b',
 }
 
 /** Amaron enquiry status option UUIDs (vos-types AmaronEnquiryStatusEnum). */
 export const AMARON_ENQUIRY_STATUS = {
   OPEN: '3641d0ee-f9c3-4e2c-8d33-456164d0f73e',
   DUPLICATE: 'b7e2cb79-6ef4-4b66-8850-67d064125a7d',
+} as const
+
+/** Amaron Call template — Call Status column option UUIDs. */
+export const AMARON_CALL_STATUS = {
+  SCHEDULED: 'ce092834-766b-4426-857a-240a60976d3b',
+  LOGGED: '966c78c7-2364-4db5-b934-8a9c285e57a2',
+  CANCELLED: 'd460914b-9f5e-42de-8a90-1f84f2754c6f',
+  ARCHIVE: '38023cc9-68b8-440a-8e87-7d7f1f522bd2',
 } as const
 
 export const LEAD_CREATE_TRIGGER_JSON = JSON.stringify(LEAD_CREATE_TRIGGER_BODY, null, 2)
@@ -80,8 +92,8 @@ export const LEAD_CREATE_TRIGGER_JSON = JSON.stringify(LEAD_CREATE_TRIGGER_BODY,
  * 4. Create Event Container → Load organizational units → pick OU
  * 5. Toolbar JSON — edit fields to match your trigger payload (camelCase keys)
  *
- * Repeat lead (same contactNumber): Find returns existing Journey; Create Event copies
- * stored column values from that container and sets enquiryStatus to DUPLICATE.
+ * Repeat lead (same contactNumber): Find returns existing Journey; set enquiryStatus (and
+ * other event fields) in the API Request JSON — e.g. DUPLICATE status UUID for repeat leads.
  */
 export const leadCreateTemplate: Graph = {
   id: LEAD_CREATE_TEMPLATE_IDS.graph,
@@ -146,11 +158,7 @@ export const leadCreateTemplate: Graph = {
       id: LEAD_CREATE_TEMPLATE_IDS.createEvent,
       type: NodeType.CreateEvent,
       position: { x: 1200, y: 120 },
-      configuration: {
-        existingContainerFieldOverrides: {
-          enquiryStatus: AMARON_ENQUIRY_STATUS.DUPLICATE,
-        },
-      },
+      configuration: {},
     },
     {
       id: LEAD_CREATE_TEMPLATE_IDS.objectFromKeys,

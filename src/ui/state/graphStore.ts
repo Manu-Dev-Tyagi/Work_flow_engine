@@ -1,5 +1,4 @@
 import type { Graph } from '../../engine/graph/types'
-import type { ExecutionContext } from '../../engine/runtime/executionContext'
 import type { Registry } from '../../engine/registry/registry'
 import { createId } from '../../engine/graph/ids'
 import { NodeType } from '../../engine/graph/enums'
@@ -9,18 +8,34 @@ import {
   LEAD_CREATE_TRIGGER_JSON,
 } from '../../fixtures/templates/leadCreate'
 
-export { LEAD_CREATE_TRIGGER_JSON }
-
 export type ConnectionMessage = {
   code: string
   message: string
 } | null
 
-export type WorkflowUiState = {
-  graph: Graph
-  execution: ExecutionContext | null
-  connectionMessage: ConnectionMessage
-  isRunning: boolean
+export function resolveApiTriggerJson(graph: Graph): string {
+  const apiNode = graph.nodes.find((node) => node.type === NodeType.ApiRequest)
+  if (!apiNode) return '{}'
+  if (String(apiNode.configuration.endpointUrl ?? '').trim()) {
+    return ''
+  }
+  const raw = apiNode.configuration.sampleBody
+  return typeof raw === 'string' && raw.trim() ? raw : '{}'
+}
+
+export function apiRequestHasEndpoint(graph: Graph): boolean {
+  const apiNode = graph.nodes.find((node) => node.type === NodeType.ApiRequest)
+  return Boolean(apiNode && String(apiNode.configuration.endpointUrl ?? '').trim())
+}
+
+export function parseApiTriggerPayload(graph: Graph): Record<string, unknown> | undefined {
+  if (apiRequestHasEndpoint(graph)) return undefined
+  const raw = resolveApiTriggerJson(graph)
+  const parsed = JSON.parse(raw) as unknown
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('API Request JSON must be an object')
+  }
+  return parsed as Record<string, unknown>
 }
 
 export function createEmptyGraph(): Graph {
@@ -39,6 +54,8 @@ export function defaultConfiguration(type: NodeType): Record<string, unknown> {
       return { a: '' }
     case NodeType.ApiRequest:
       return {
+        endpointUrl: '',
+        httpMethod: 'GET',
         sampleBody: LEAD_CREATE_TRIGGER_JSON,
         matchField: 'contactNumber',
       }

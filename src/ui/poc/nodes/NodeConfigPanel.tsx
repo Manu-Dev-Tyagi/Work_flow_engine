@@ -7,9 +7,9 @@ import type { WorkflowNodeData } from '../../canvas/adapters'
 import { GetEventContainerTemplateConfig } from '../../nodes/GetEventContainerTemplateConfig'
 import { GetEventTemplateConfig } from '../../nodes/GetEventTemplateConfig'
 import { CreateEventContainerConfig } from '../../nodes/CreateEventContainerConfig'
-import { CreateEventConfig } from '../../nodes/CreateEventConfig'
 import { FindEventContainerConfig } from '../../nodes/FindEventContainerConfig'
 import { ObjectFromKeysConfig } from '../../nodes/ObjectFromKeysConfig'
+import { ApiRequestConfig } from '../../nodes/ApiRequestConfig'
 import { NodeType } from '../../../engine/graph/enums'
 
 type Props = {
@@ -55,11 +55,11 @@ export function NodeConfigPanel({ nodeId, data, registry }: Props) {
         )
       case NodeType.CreateEvent:
         return (
-          <CreateEventConfig
-            nodeId={nodeId}
-            configuration={data.configuration}
-            onConfigBatchChange={data.onConfigBatchChange}
-          />
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            Column values come from the API trigger (via Get Event Template) and wired inputs.
+            For repeat leads, set fields such as <code className="text-[10px]">enquiryStatus</code>{' '}
+            in the API Request JSON.
+          </p>
         )
       case NodeType.FindEventContainer:
         return (
@@ -72,6 +72,14 @@ export function NodeConfigPanel({ nodeId, data, registry }: Props) {
       case NodeType.ObjectFromKeys:
         return (
           <ObjectFromKeysConfig
+            nodeId={nodeId}
+            configuration={data.configuration}
+            onConfigChange={data.onConfigChange}
+          />
+        )
+      case NodeType.ApiRequest:
+        return (
+          <ApiRequestConfig
             nodeId={nodeId}
             configuration={data.configuration}
             onConfigChange={data.onConfigChange}

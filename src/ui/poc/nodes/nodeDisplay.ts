@@ -90,6 +90,3 @@ export function portTypeBadgeClass(portType: PortType | string): string {
   }
 }
 
-export function abbreviatePortType(portType: string): string {
-  return portTypeLabel(portType as PortType)
-}
